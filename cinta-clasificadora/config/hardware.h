@@ -27,6 +27,7 @@
 #define TRIGGER_PIN     PB1     /**< Pin físico del Trigger (Arduino D9) */
 
 #define ECHO_DDR        DDRB    /**< Registro de dirección para el Echo */
+#define ECHO_PORT       PORTB   /**< Puerto de salida para el Echo */
 #define ECHO_PIN_REG    PINB    /**< Registro de lectura para el Echo */
 #define ECHO_PIN        PB2     /**< Pin físico del Echo (Arduino D10) */
 /** @} */
