@@ -1,7 +1,7 @@
 /**
  * @file gpio.h
  * @brief Definiciones y prototipos para la inicialización de GPIO.
- * @author Tu Nombre
+ * @author LeoM320
  * @date 14 de Mayo de 2026
  *
  * @details Este archivo actúa como la interfaz de configuración de hardware
