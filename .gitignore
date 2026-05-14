@@ -1,3 +1,6 @@
+# =========================
+# C/C++ Standard
+# =========================
 # Prerequisites
 *.d
 
@@ -53,3 +56,46 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# =========================
+# Microchip Studio / AVR GCC
+# =========================
+Debug/
+Release/
+.vs/
+*.user
+*.aps
+*.componentinfo.xml
+*.tmp
+*.eep
+*.lss
+*.sym
+*.lock
+*.srec
+
+# =========================
+# Qt framework (HMI)
+# =========================
+build-*/
+*.stash
+*.qm
+*.pro.user
+*.pro.user.*
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+Makefile*
+
+# =========================
+# Visual Studio Code & OS
+# =========================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+.DS_Store
+Thumbs.db
