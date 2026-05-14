@@ -1,8 +1,11 @@
 /**
- * @file    hardware.h
- * @brief   Configuración de hardware y mapeo de pines para el sistema clasificador.
- * @details Define la frecuencia del reloj, puertos, registros de dirección y pines 
- *          del ATmega328P correspondientes a la distribución física del proyecto.
+ * @file hardware.h
+ * @brief Configuración de hardware y mapeo de pines para el sistema clasificador.
+ * @author LeoM320
+ * @date 14 de Mayo de 2026
+ * * @details Define la frecuencia del reloj, puertos, registros de dirección y pines 
+ * del ATmega328P correspondientes a la distribución física del proyecto.
+ * Este archivo actúa como el nexo entre el hardware real y la capa HAL.
  */
 
 #ifndef CONFIG_HARDWARE_H_
@@ -10,8 +13,7 @@
 
 #include <avr/io.h>
 
-/** 
- * @brief Frecuencia del CPU (16 MHz) 
+/** * @brief Frecuencia del CPU (16 MHz) 
  */
 #define F_CPU 16000000UL
 
@@ -52,29 +54,24 @@
  * @brief Configuración del puerto D para la lectura digital de los sensores IR.
  * @{
  */
- 
-// IR0 - Trigger (Entrada de caja)
-#define IR0_DDR         DDRD
-#define IR0_PORT        PORTD
-#define IR0_PIN_REG     PIND
+#define IR0_DDR         DDRD    /**< Registro de dirección para IR0 */
+#define IR0_PORT        PORTD   /**< Puerto de salida para IR0 */
+#define IR0_PIN_REG     PIND    /**< Registro de entrada para IR0 */
 #define IR0_PIN         PD5     /**< Pin físico para IR0 (Arduino D5) */
 
-// IR1 - Salida 1
-#define IR1_DDR         DDRD
-#define IR1_PORT        PORTD
-#define IR1_PIN_REG     PIND
+#define IR1_DDR         DDRD    /**< Registro de dirección para IR1 */
+#define IR1_PORT        PORTD   /**< Puerto de salida para IR1 */
+#define IR1_PIN_REG     PIND    /**< Registro de entrada para IR1 */
 #define IR1_PIN         PD2     /**< Pin físico para IR1 (Arduino D2) */
 
-// IR2 - Salida 2
-#define IR2_DDR         DDRD
-#define IR2_PORT        PORTD
-#define IR2_PIN_REG     PIND
+#define IR2_DDR         DDRD    /**< Registro de dirección para IR2 */
+#define IR2_PORT        PORTD   /**< Puerto de salida para IR2 */
+#define IR2_PIN_REG     PIND    /**< Registro de entrada para IR2 */
 #define IR2_PIN         PD3     /**< Pin físico para IR2 (Arduino D3) */
 
-// IR3 - Salida 3
-#define IR3_DDR         DDRD
-#define IR3_PORT        PORTD
-#define IR3_PIN_REG     PIND
+#define IR3_DDR         DDRD    /**< Registro de dirección para IR3 */
+#define IR3_PORT        PORTD   /**< Puerto de salida para IR3 */
+#define IR3_PIN_REG     PIND    /**< Registro de entrada para IR3 */
 #define IR3_PIN         PD4     /**< Pin físico para IR3 (Arduino D4) */
 /** @} */
 
@@ -94,12 +91,10 @@
  * @brief Configuración para indicadores de estado y control de potencia.
  * @{
  */
-// LED de estado
 #define STATUS_LED_DDR  DDRB    /**< Registro de dirección para el LED de estado */
 #define STATUS_LED_PORT PORTB   /**< Puerto de salida para el LED de estado */
 #define STATUS_LED_PIN  PB5     /**< Pin físico del LED (Arduino D13) */
 
-// Control de cinta transportadora
 #define CINTA_DDR       DDRC    /**< Registro de dirección para el control de la cinta */
 #define CINTA_PORT      PORTC   /**< Puerto de salida para la cinta */
 #define CINTA_PIN       PC0     /**< Pin físico del control de cinta (Arduino A0) */
