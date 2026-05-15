@@ -15,7 +15,9 @@
 
 /** * @brief Frecuencia del CPU (16 MHz) 
  */
-#define F_CPU 16000000UL
+//#ifndef F_CPU
+//#define F_CPU 16000000UL
+//#endif
 
 /**
  * @defgroup Ultrasonic_Config Sensor Ultrasónico HC-SR04
