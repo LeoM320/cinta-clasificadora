@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>interfaz.qml</file>
+    </qresource>
+</RCC>
