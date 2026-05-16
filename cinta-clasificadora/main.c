@@ -1,8 +1,8 @@
 /**
  * @file main.c
- * @brief Programa principal para pruebas de temporización por software (Polling).
+ * @brief Prueba de máquina de estados para el control de Servos con temporizadores.
  * @author LeoM320
- * @date 14/05/2026
+ * @date 15/05/2026
  */ 
 
 #include <avr/io.h>
@@ -11,58 +11,85 @@
 #include "config/gpio.h"
 #include "hal/hal_gpio.h"
 #include "hal/hal_timer.h"
+#include "hal/hal_servo.h"
 #include "utils/temporizador.h"
 
 int main(void)
 {
     // ==========================================
-    // 1. Inicialización de Hardware
+    // 1. Inicialización
     // ==========================================
-    GPIO_Init();        
-    HAL_Timer0_Init();  
+    GPIO_Init();
+    HAL_Timer0_Init();
+    HAL_Servo_Init();
 
-    sei(); // ¡Fundamental habilitar interrupciones!
+    sei(); // Habilitar interrupciones globales
 
     // ==========================================
-    // 2. Configuración de Tareas (Timers de Software)
+    // 2. Configuración de Temporizadores
     // ==========================================
-    Temporizador timer_lento;
-    Temporizador timer_rapido;
-    Temporizador timer_micro; // Nuevo timer para us
+    Temporizador timer_led;
+    Temporizador timer_secuencia;
 
-    // Tarea 1: Onda lenta (500ms -> 1 Hz)
-    Temp_IniciarMS(&timer_lento, 500);
+    // El LED parpadea cada 250ms para demostrar que el micro no se bloquea
+    Temp_IniciarMS(&timer_led, 250);
     
-    // Tarea 2: Onda media (100ms -> 5 Hz)
-    Temp_IniciarMS(&timer_rapido, 100);
+    // Arrancamos la secuencia del servo casi instantáneamente
+    Temp_IniciarMS(&timer_secuencia, 10);
 
-    // Tarea 3: Onda ultra rápida (500us -> 1 kHz)
-    Temp_IniciarUS(&timer_micro, 500);
+    uint8_t paso_secuencia = 0;
 
     // ==========================================
-    // 3. Bucle Principal (Super Loop)
+    // 3. Super Loop (Máquina de Estados)
     // ==========================================
     while(1)
     {
-        // Tarea 1: STATUS_LED
-        if(Temp_Expiro(&timer_lento))
+        // --- TAREA 1: Heartbeat (Latido de vida) ---
+        if(Temp_Expiro(&timer_led))
         {
             HAL_GPIO_TOGGLE(STATUS_LED_PORT, STATUS_LED_PIN);
-            Temp_Reiniciar(&timer_lento);
+            Temp_Reiniciar(&timer_led);
         }
 
-        // Tarea 2: SERVO1
-        if(Temp_Expiro(&timer_rapido))
+        // --- TAREA 2: Secuencia del Servo 1 ---
+        if(Temp_Expiro(&timer_secuencia))
         {
-            HAL_GPIO_TOGGLE(SERVO1_PORT, SERVO1_PIN);
-            Temp_Reiniciar(&timer_rapido);
-        }
-
-        // Tarea 3: SERVO2 (Prueba de micros)
-        if(Temp_Expiro(&timer_micro))
-        {
-            HAL_GPIO_TOGGLE(SERVO2_PORT, SERVO2_PIN);
-            Temp_Reiniciar(&timer_micro);
+            switch(paso_secuencia)
+            {
+                case 0:
+                    // Habilitar el motor y llevarlo a 0 grados
+                    HAL_Servo_Enable(SERVO_1);
+                    HAL_Servo_SetAngle(SERVO_1, 0);
+                    
+                    Temp_IniciarMS(&timer_secuencia, 1000); // Esperar 1 segundo
+                    paso_secuencia = 1;
+                    break;
+                    
+                case 1:
+                    // Mover al centro (90 grados)
+                    HAL_Servo_SetAngle(SERVO_1, 90);
+                    
+                    Temp_IniciarMS(&timer_secuencia, 1000); // Esperar 1 segundo
+                    paso_secuencia = 2;
+                    break;
+                    
+                case 2:
+                    // Mover al extremo (180 grados)
+                    HAL_Servo_SetAngle(SERVO_1, 180);
+                    
+                    Temp_IniciarMS(&timer_secuencia, 1000); // Esperar 1 segundo
+                    paso_secuencia = 3;
+                    break;
+                    
+                case 3:
+                    // Deshabilitar el motor de forma segura
+                    // Acá vas a notar que el motor pierde fuerza de retención
+                    HAL_Servo_Disable(SERVO_1);
+                    
+                    Temp_IniciarMS(&timer_secuencia, 2000); // Dejarlo "suelto" 2 segundos
+                    paso_secuencia = 0; // Volver a empezar
+                    break;
+            }
         }
     }
 }
