@@ -16,12 +16,55 @@ Rectangle {
         anchors.margins: 20
     }
 
-    Button {
-        text: "Arrancar Motor (Prueba C)"
+    // Contenedor para los controles del Heartbeat
+    Column {
         anchors.centerIn: parent
-        onClicked: {
-            // "backend" es el nombre que le daremos a tu clase C++ desde QML
-            backend.iniciarMotorDesdeC()
+        spacing: 20
+
+        // Control de Encendido/Apagado
+        Row {
+            spacing: 15
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            Text {
+                text: "Heartbeat:"
+                color: "white"
+                font.pixelSize: 16
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Switch {
+                id: hbSwitch
+                checked: true // Encendido por defecto (como en el micro)
+                onCheckedChanged: enviarConfiguracion()
+            }
         }
+
+        // Control del Periodo (Frecuencia)
+        Column {
+            spacing: 5
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            Text {
+                text: "Periodo: " + hbSlider.value + " ms"
+                color: "white"
+                font.pixelSize: 16
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+
+            Slider {
+                id: hbSlider
+                from: 100    // Mínimo 100ms
+                to: 5000     // Máximo 5 segundos
+                stepSize: 100 // Saltos de 100ms
+                value: 1000  // Por defecto 1 segundo
+                onValueChanged: enviarConfiguracion()
+            }
+        }
+    }
+
+    // Función que envía los datos al backend en C++
+    function enviarConfiguracion() {
+        backend.configurarHeartbeat(hbSwitch.checked, hbSlider.value)
     }
 }

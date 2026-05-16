@@ -1,4 +1,4 @@
-QT       += core gui quickwidgets qml quick
+QT       += core gui quickwidgets qml quick serialport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -10,10 +10,14 @@ CONFIG += c++17
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    unerHandler.cpp \
+    unerSerialQT.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    unerHandler.h \
+    unerSerialQT.h
 
 FORMS += \
     mainwindow.ui

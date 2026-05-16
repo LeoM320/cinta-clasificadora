@@ -2,7 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "UnerSerialQT.h"
 #include <QQuickWidget>
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -19,11 +21,21 @@ public:
     ~MainWindow();
 
 public slots:
-    // Q_INVOKABLE permite que QML pueda llamar a esta función directamente
     Q_INVOKABLE void iniciarMotorDesdeC();
+
+    // NUEVO: Método para recibir los datos de QML
+    Q_INVOKABLE void configurarHeartbeat(bool habilitado, int periodo);
+
+    void onRx();
+    void onTimer();
+
+private slots:
+    void on_pushButtonOpenClose_clicked();
 
 private:
     Ui::MainWindow *ui;
-    QQuickWidget *visorQml; // El widget contenedor
+    UnerSerialQT *puertoSerie;
+    //QTimer *timer;
 };
+
 #endif // MAINWINDOW_H
