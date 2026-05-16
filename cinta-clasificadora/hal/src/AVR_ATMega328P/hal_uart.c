@@ -8,13 +8,8 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-// Definición de F_CPU por si no está en las banderas del compilador
-#ifndef F_CPU
-#define F_CPU 16000000UL 
-#endif
-
 // Tamaño del Buffer Circular (Debe ser potencia de 2 preferentemente)
-#define RX_BUFFER_SIZE 64
+#define RX_BUFFER_SIZE 128
 
 // Memoria compartida entre la ISR y el Super Loop
 volatile uint8_t rx_buffer[RX_BUFFER_SIZE];
