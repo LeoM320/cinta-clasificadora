@@ -1,16 +1,14 @@
 /**
  * @file uner_protocol.c
- * @brief Implementación del motor UNER.
+ * @brief Implementación del motor UNER con decodificación On-The-Fly.
  */
 
 #include "uner_protocol.h"
-#include "../hal/include/hal_uart.h" // Conexión directa con tu driver
+#include "../hal/include/hal_uart.h" 
 
 void Uner_Init(UnerProtocol_t *u) {
     u->tx.iR = 0;
     u->tx.iW = 0;
-    u->rx.iR = 0;
-    u->rx.iW = 0;
     u->rx.state = UNER_STATE_U;
     u->reset_time = 0;
     u->comando_listo = false;
@@ -56,7 +54,6 @@ void Uner_CerrarCarga(UnerProtocol_t *u) {
 }
 
 void Uner_Transmitir(UnerProtocol_t *u) {
-    // Si hay datos en el buffer, se despachan por hardware
     while (u->tx.iR != u->tx.iW) {
         HAL_UART_TxByte(u->tx.buf[u->tx.iR]);
         u->tx.iR = (u->tx.iR + 1) & UNER_BUFLIMIT;
@@ -64,79 +61,81 @@ void Uner_Transmitir(UnerProtocol_t *u) {
 }
 
 // ==========================================
-// SECCIÓN DE RECEPCIÓN Y DECODIFICACIÓN (RX)
+// SECCIÓN DE RECEPCIÓN: ZERO-COPY PARSING
 // ==========================================
 void Uner_Recibir(UnerProtocol_t *u, uint32_t current_ms) {
-    // Timeout de reseteo
+    // Control de timeout: Si pasa mucho tiempo sin recibir, reiniciamos la máquina.
     if ((current_ms - u->reset_time) > UNER_REFRESH_MS) {
         u->rx.state = UNER_STATE_U;
     }
     u->reset_time = current_ms;
 
-    // Volcar hardware al buffer circular del parser
+    // Leemos byte por byte directo del hardware y lo procesamos al vuelo
     while (HAL_UART_RxDataAvailable()) {
-        u->rx.buf[u->rx.iW] = HAL_UART_RxRead();
-        u->rx.iW = (u->rx.iW + 1) & UNER_BUFLIMIT;
-        Uner_Decodificar(u);
-    }
-}
-
-void Uner_Decodificar(UnerProtocol_t *u) {
-    UnerRx_t *rx = &u->rx;
-    uint8_t limit = rx->iW;
-    
-    while (rx->iR != limit) {
-        uint8_t byte = rx->buf[rx->iR];
+        uint8_t byte = HAL_UART_RxRead();
         
-        switch(rx->state) {
+        switch(u->rx.state) {
             case UNER_STATE_U:
-                if (byte == 'U') { rx->checksum = byte; rx->state = UNER_STATE_N; }
-                rx->iR = (rx->iR + 1) & UNER_BUFLIMIT;
+                if (byte == 'U') { u->rx.checksum = byte; u->rx.state = UNER_STATE_N; }
                 break;
+                
             case UNER_STATE_N:
-                if (byte == 'N') { rx->checksum ^= byte; rx->state = UNER_STATE_E; }
-                else { rx->state = UNER_STATE_U; rx->iR = (rx->iR - 1) & UNER_BUFLIMIT; }
-                rx->iR = (rx->iR + 1) & UNER_BUFLIMIT;
+                if (byte == 'N') { u->rx.checksum ^= byte; u->rx.state = UNER_STATE_E; }
+                else if (byte == 'U') { u->rx.checksum = byte; } // Falsa alarma, inicia nueva cabecera
+                else { u->rx.state = UNER_STATE_U; }
                 break;
+                
             case UNER_STATE_E:
-                if (byte == 'E') { rx->checksum ^= byte; rx->state = UNER_STATE_R; }
-                else { rx->state = UNER_STATE_U; rx->iR = (rx->iR - 1) & UNER_BUFLIMIT; }
-                rx->iR = (rx->iR + 1) & UNER_BUFLIMIT;
+                if (byte == 'E') { u->rx.checksum ^= byte; u->rx.state = UNER_STATE_R; }
+                else if (byte == 'U') { u->rx.checksum = byte; u->rx.state = UNER_STATE_N; }
+                else { u->rx.state = UNER_STATE_U; }
                 break;
+                
             case UNER_STATE_R:
-                if (byte == 'R') { rx->checksum ^= byte; rx->state = UNER_STATE_LENGTH; }
-                else { rx->state = UNER_STATE_U; rx->iR = (rx->iR - 1) & UNER_BUFLIMIT; }
-                rx->iR = (rx->iR + 1) & UNER_BUFLIMIT;
+                if (byte == 'R') { u->rx.checksum ^= byte; u->rx.state = UNER_STATE_LENGTH; }
+                else if (byte == 'U') { u->rx.checksum = byte; u->rx.state = UNER_STATE_N; }
+                else { u->rx.state = UNER_STATE_U; }
                 break;
+                
             case UNER_STATE_LENGTH:
-                rx->length = byte;
-                rx->checksum ^= byte;
-                rx->state = UNER_STATE_TOKEN;
-                rx->iR = (rx->iR + 1) & UNER_BUFLIMIT;
+                u->rx.length = byte;
+                u->rx.checksum ^= byte;
+                u->rx.state = UNER_STATE_TOKEN;
                 break;
+                
             case UNER_STATE_TOKEN:
                 if (byte == ':') {
-                    rx->checksum ^= byte;
-                    rx->payloadCount = 0;
-                    rx->state = UNER_STATE_PAYLOAD;
-                } else {
-                    rx->state = UNER_STATE_U; rx->iR = (rx->iR - 1) & UNER_BUFLIMIT;
-                }
-                rx->iR = (rx->iR + 1) & UNER_BUFLIMIT;
+                    u->rx.checksum ^= byte;
+                    u->rx.payloadCount = 0;
+                    
+                    // Verificación de seguridad extra: Si el length es 0, no hay payload
+                    if (u->rx.length > 0) {
+                        u->rx.state = UNER_STATE_PAYLOAD;
+                    } else {
+                        u->rx.state = UNER_STATE_CHECKSUM;
+                    }
+                } 
+                else if (byte == 'U') { u->rx.checksum = byte; u->rx.state = UNER_STATE_N; }
+                else { u->rx.state = UNER_STATE_U; }
                 break;
+                
             case UNER_STATE_PAYLOAD:
-                if (rx->payloadCount < (rx->length - 1)) {
-                    rx->checksum ^= byte;
-                    rx->payload[rx->payloadCount++] = byte;
-                    rx->iR = (rx->iR + 1) & UNER_BUFLIMIT;
-                } else {
-                    rx->state = UNER_STATE_CHECKSUM;
+                if (u->rx.payloadCount < (u->rx.length - 1)) {
+                    u->rx.checksum ^= byte;
+                    u->rx.payload[u->rx.payloadCount++] = byte;
+                }
+                
+                // Si ya completamos la cantidad requerida, el próximo estado es el Checksum
+                if (u->rx.payloadCount == (u->rx.length - 1)) {
+                    u->rx.state = UNER_STATE_CHECKSUM;
                 }
                 break;
+                
             case UNER_STATE_CHECKSUM:
-                if (rx->checksum == byte) { u->comando_listo = true; }
-                rx->state = UNER_STATE_U;
-                rx->iR = (rx->iR + 1) & UNER_BUFLIMIT;
+                if (u->rx.checksum == byte) { 
+                    u->comando_listo = true; 
+                }
+                u->rx.state = UNER_STATE_U;
                 break;
         }
     }

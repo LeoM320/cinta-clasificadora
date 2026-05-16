@@ -1,6 +1,6 @@
 /**
  * @file uner_protocol.h
- * @brief Motor del protocolo UNER optimizado en C puro para enteros.
+ * @brief Motor del protocolo UNER optimizado (Zero-Copy Parsing) en C puro para enteros.
  */
 
 #ifndef UNER_PROTOCOL_H_
@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// El tamaño DEBE ser potencia de 2 para usar la máscara de bits
 #define UNER_BUF_SIZE 128
 #define UNER_BUFLIMIT (UNER_BUF_SIZE - 1)
 #define UNER_REFRESH_MS 70
@@ -25,6 +24,7 @@ typedef enum {
     UNER_STATE_CHECKSUM
 } UnerState_t;
 
+// Buffer circular de transmisión (Armado de paquetes)
 typedef struct {
     uint8_t iR;
     uint8_t iW;
@@ -32,10 +32,8 @@ typedef struct {
     uint8_t checksum;
 } UnerTx_t;
 
+// Decodificador "al vuelo" (Sin buffer circular)
 typedef struct {
-    uint8_t iR;
-    uint8_t iW;
-    uint8_t buf[UNER_BUF_SIZE];
     uint8_t checksum;
     uint8_t length;
     uint8_t payload[UNER_BUF_SIZE];
@@ -53,7 +51,6 @@ typedef struct {
 // Inicialización y Máquina de Estados
 void Uner_Init(UnerProtocol_t *u);
 void Uner_Recibir(UnerProtocol_t *u, uint32_t current_ms);
-void Uner_Decodificar(UnerProtocol_t *u);
 void Uner_Transmitir(UnerProtocol_t *u);
 
 // Transmisión (TX)
