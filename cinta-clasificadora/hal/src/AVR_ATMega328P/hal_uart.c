@@ -3,8 +3,8 @@
  * @brief Implementación del driver UART con interrupciones para RX.
  */
 
-#include "../include/hal_uart.h"
-#include "../../config/hardware.h"
+#include "../../include/hal_uart.h"
+#include "../../../config/hardware.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 

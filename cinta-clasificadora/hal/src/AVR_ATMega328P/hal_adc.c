@@ -3,7 +3,7 @@
  * @brief Implementación del driver del ADC por Polling.
  */
 
-#include "../include/hal_adc.h"
+#include "../../include/hal_adc.h"
 #include <avr/io.h>
 
 void HAL_ADC_Init(void)

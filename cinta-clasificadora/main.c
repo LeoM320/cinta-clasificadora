@@ -2,7 +2,7 @@
 #include <avr/interrupt.h>
 #include "config/hardware.h"
 #include "config/gpio.h"
-#include "hal/hal_uart.h"
+#include "hal/include/hal_uart.h"
 
 int main(void)
 {

@@ -3,9 +3,9 @@
  * @brief Implementación segura del driver PWM multicanal.
  */
 
-#include "../include/hal_servo.h"
-#include "../../config/hardware.h"
-#include "../include/hal_gpio.h"
+#include "../../include/hal_servo.h"
+#include "../../../config/hardware.h"
+#include "../../include/hal_gpio.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 

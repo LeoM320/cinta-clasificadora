@@ -2,7 +2,7 @@
 // Utils/temporizador.c
 // ==========================================
 #include "temporizador.h"
-#include "../HAL/hal_timer.h" // Usamos la HAL, no los registros
+#include "../hal/include/hal_timer.h" // Usamos la HAL, no los registros
 
 void Temp_IniciarUS(Temporizador *t, uint32_t us)
 {
