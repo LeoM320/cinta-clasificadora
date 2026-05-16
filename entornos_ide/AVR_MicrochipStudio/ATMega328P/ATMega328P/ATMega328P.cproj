@@ -12,9 +12,9 @@
     <OutputFileName>$(MSBuildProjectName)</OutputFileName>
     <OutputFileExtension>.elf</OutputFileExtension>
     <OutputDirectory>$(MSBuildProjectDirectory)\$(Configuration)</OutputDirectory>
-    <AssemblyName>cinta-clasificadora</AssemblyName>
-    <Name>cinta-clasificadora</Name>
-    <RootNamespace>cinta-clasificadora</RootNamespace>
+    <AssemblyName>ATMega328P</AssemblyName>
+    <Name>ATMega328P</Name>
+    <RootNamespace>ATMega328P</RootNamespace>
     <ToolchainFlavour>XC8_2.36</ToolchainFlavour>
     <KeepTimersRunning>true</KeepTimersRunning>
     <OverrideVtor>false</OverrideVtor>
@@ -53,6 +53,11 @@
             <Value>NDEBUG</Value>
           </ListValues>
         </com.microchip.xc8.compiler.symbols.DefSymbols>
+        <com.microchip.xc8.compiler.directories.IncludePaths>
+          <ListValues>
+            <Value>..\..\..\..\app_core</Value>
+          </ListValues>
+        </com.microchip.xc8.compiler.directories.IncludePaths>
         <com.microchip.xc8.compiler.optimization.level>Optimize for size (-Os)</com.microchip.xc8.compiler.optimization.level>
         <com.microchip.xc8.compiler.optimization.PackStructureMembers>True</com.microchip.xc8.compiler.optimization.PackStructureMembers>
         <com.microchip.xc8.compiler.optimization.AllocateBytesNeededForEnum>True</com.microchip.xc8.compiler.optimization.AllocateBytesNeededForEnum>
@@ -68,10 +73,6 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ToolchainSettings>
       <com.microchip.xc8>
-        <com.microchip.xc8.common.outputfiles.hex>True</com.microchip.xc8.common.outputfiles.hex>
-        <com.microchip.xc8.common.outputfiles.eep>True</com.microchip.xc8.common.outputfiles.eep>
-        <com.microchip.xc8.common.outputfiles.usersignatures>False</com.microchip.xc8.common.outputfiles.usersignatures>
-        <com.microchip.xc8.common.outputfiles.lss>True</com.microchip.xc8.common.outputfiles.lss>
         <com.microchip.xc8.compiler.general.ChangeDefaultCharTypeUnsigned>True</com.microchip.xc8.compiler.general.ChangeDefaultCharTypeUnsigned>
         <com.microchip.xc8.compiler.general.ChangeDefaultBitFieldUnsigned>True</com.microchip.xc8.compiler.general.ChangeDefaultBitFieldUnsigned>
         <com.microchip.xc8.compiler.symbols.DefSymbols>
@@ -80,6 +81,11 @@
             <Value>DEBUG</Value>
           </ListValues>
         </com.microchip.xc8.compiler.symbols.DefSymbols>
+        <com.microchip.xc8.compiler.directories.IncludePaths>
+          <ListValues>
+            <Value>..\..\..\..\app_core</Value>
+          </ListValues>
+        </com.microchip.xc8.compiler.directories.IncludePaths>
         <com.microchip.xc8.compiler.optimization.level>Optimize debugging experience (-Og)</com.microchip.xc8.compiler.optimization.level>
         <com.microchip.xc8.compiler.optimization.PackStructureMembers>True</com.microchip.xc8.compiler.optimization.PackStructureMembers>
         <com.microchip.xc8.compiler.optimization.AllocateBytesNeededForEnum>True</com.microchip.xc8.compiler.optimization.AllocateBytesNeededForEnum>
@@ -94,66 +100,89 @@
       </com.microchip.xc8>
     </ToolchainSettings>
   </PropertyGroup>
+  
   <ItemGroup>
-    <Compile Include="config\gpio.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="config\gpio.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="config\hardware.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\src\AVR_ATMega328P\hal_adc.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\include\hal_adc.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\include\hal_gpio.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\src\AVR_ATMega328P\hal_servo.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\include\hal_servo.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\src\AVR_ATMega328P\hal_timer.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\include\hal_timer.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\src\AVR_ATMega328P\hal_uart.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hal\include\hal_uart.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="main.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="utils\temporizador.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="utils\temporizador.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="utils\uner_protocol.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="utils\uner_protocol.h">
-      <SubType>compile</SubType>
-    </Compile>
+    <Folder Include="config\" />
+    <Folder Include="hal\" />
+    <Folder Include="hal\include\" />
+    <Folder Include="hal\src\" />
+    <Folder Include="hal\src\AVR_ATMega328P\" />
+    <Folder Include="utils\" />
   </ItemGroup>
+
   <ItemGroup>
-    <Folder Include="hal" />
-    <Folder Include="hal\include" />
-    <Folder Include="hal\src" />
-    <Folder Include="hal\src\AVR_ATMega328P" />
-    <Folder Include="config" />
-    <Folder Include="utils" />
+    <Compile Include="..\..\..\..\app_core\main.c">
+      <SubType>compile</SubType>
+      <Link>main.c</Link>
+    </Compile>
+    
+    <Compile Include="..\..\..\..\app_core\config\gpio.c">
+      <SubType>compile</SubType>
+      <Link>config\gpio.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\config\gpio.h">
+      <SubType>compile</SubType>
+      <Link>config\gpio.h</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\config\hardware.h">
+      <SubType>compile</SubType>
+      <Link>config\hardware.h</Link>
+    </Compile>
+
+    <Compile Include="..\..\..\..\app_core\hal\include\hal_adc.h">
+      <SubType>compile</SubType>
+      <Link>hal\include\hal_adc.h</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\hal\include\hal_gpio.h">
+      <SubType>compile</SubType>
+      <Link>hal\include\hal_gpio.h</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\hal\include\hal_servo.h">
+      <SubType>compile</SubType>
+      <Link>hal\include\hal_servo.h</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\hal\include\hal_timer.h">
+      <SubType>compile</SubType>
+      <Link>hal\include\hal_timer.h</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\hal\include\hal_uart.h">
+      <SubType>compile</SubType>
+      <Link>hal\include\hal_uart.h</Link>
+    </Compile>
+
+    <Compile Include="..\..\..\..\app_core\hal\src\AVR_ATMega328P\hal_adc.c">
+      <SubType>compile</SubType>
+      <Link>hal\src\AVR_ATMega328P\hal_adc.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\hal\src\AVR_ATMega328P\hal_servo.c">
+      <SubType>compile</SubType>
+      <Link>hal\src\AVR_ATMega328P\hal_servo.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\hal\src\AVR_ATMega328P\hal_timer.c">
+      <SubType>compile</SubType>
+      <Link>hal\src\AVR_ATMega328P\hal_timer.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\hal\src\AVR_ATMega328P\hal_uart.c">
+      <SubType>compile</SubType>
+      <Link>hal\src\AVR_ATMega328P\hal_uart.c</Link>
+    </Compile>
+
+    <Compile Include="..\..\..\..\app_core\utils\temporizador.c">
+      <SubType>compile</SubType>
+      <Link>utils\temporizador.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\temporizador.h">
+      <SubType>compile</SubType>
+      <Link>utils\temporizador.h</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\uner_protocol.c">
+      <SubType>compile</SubType>
+      <Link>utils\uner_protocol.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\uner_protocol.h">
+      <SubType>compile</SubType>
+      <Link>utils\uner_protocol.h</Link>
+    </Compile>
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />
 </Project>
