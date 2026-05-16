@@ -10,7 +10,7 @@
 
 #include "gpio.h"
 #include "hardware.h"
-#include "../hal/hal_gpio.h"
+#include "../hal/include/hal_gpio.h"
 
 /**
  * @brief Inicializa los puertos de entrada y salida del microcontrolador.
