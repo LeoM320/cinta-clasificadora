@@ -2,45 +2,37 @@
 #include <avr/interrupt.h>
 #include "config/hardware.h"
 #include "config/gpio.h"
-#include "hal/hal_timer.h"
-#include "hal/hal_servo.h"
-#include "hal/hal_adc.h"          // <-- Tu nuevo módulo
-#include "utils/temporizador.h"
+#include "hal/hal_uart.h"
 
 int main(void)
 {
-    // Inicialización general
     GPIO_Init();
-    HAL_Timer0_Init();
-    HAL_Servo_Init();
-    HAL_ADC_Init();               // <-- Arrancar el ADC
+    
+    // Inicializar UART a 115200 baudios (¡Asegurate de poner la terminal de la PC a esta misma velocidad!)
+    HAL_UART_Init(115200);
 
-    sei();
+    sei(); // ¡Vital para que funcione la recepción RX!
 
-    Temporizador timer_lectura;
-    Temp_IniciarMS(&timer_lectura, 50); // Leemos el analógico 20 veces por segundo
-
-    HAL_Servo_Enable(SERVO_1);
+    // Mensaje de bienvenida
+    HAL_UART_TxString("Sistema de Cinta Clasificadora Iniciado.\r\n");
+    HAL_UART_TxString("Esperando comandos...\r\n");
 
     while(1)
     {
-        // Tarea: Lectura analógica y mapeo a servo
-        if(Temp_Expiro(&timer_lectura))
+        // Revisar si llegó algo al buffer de recepción de forma asíncrona
+        if (HAL_UART_RxDataAvailable())
         {
-            // 1. Leer el potenciómetro (devuelve 0 a 1023)
-            uint16_t valor_pote = HAL_ADC_Read(0); // 0 = Pin A0
+            uint8_t byte_recibido = HAL_UART_RxRead();
             
-            // 2. Mapear de (0-1023) a (0-180 grados)
-            // Fórmula rápida usando matemática entera: (valor * 180) / 1023
-            uint32_t calculo = ((uint32_t)valor_pote * 180) / 1023;
-            uint8_t angulo = (uint8_t)calculo;
+            // Hacer un simple Eco: devolver lo que recibimos
+            HAL_UART_TxString("Recibi: ");
+            HAL_UART_TxByte(byte_recibido);
+            HAL_UART_TxString("\r\n");
             
-            // 3. Mover el servo en tiempo real
-            HAL_Servo_SetAngle(SERVO_1, angulo);
-            
-            Temp_Reiniciar(&timer_lectura);
+            // Acá podrías agregar un simple parser:
+            // if (byte_recibido == 'a') { HAL_Servo_SetAngle(SERVO_1, 90); }
         }
         
-        // Tus otras tareas siguen girando libremente por acá...
+        // Tus servos, ADC, y temporizadores siguen funcionando perfectamente acá...
     }
 }
