@@ -76,7 +76,10 @@ Release/
 # =========================
 # Qt framework (HMI)
 # =========================
+build/
 build-*/
+.qtcreator/
+.qtc_clangd/
 *.stash
 *.qm
 *.pro.user
