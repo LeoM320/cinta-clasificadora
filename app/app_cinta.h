@@ -1,12 +1,16 @@
 #ifndef APP_CINTA_H_
 #define APP_CINTA_H_
 
+#include "hal_gpio.h"
+#include "hal_timer.h"
+#include "hal_servo.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <avr/io.h>
 //#include <util/delay.h>
 #include <avr/interrupt.h>
 #include <avr/common.h>
+#include <stddef.h>
 
 // Definición de umbrales para clasificación (en centímetros)
 #define ALTURA_CAJA_CHICA    6
