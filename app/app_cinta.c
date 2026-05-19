@@ -1,17 +1,22 @@
 #include "app_cinta.h"
 // Incluiríamos también tu mapeo de pines, asumo macros como PIN_ECHO, PORT_TRIGGER, etc.
 
+// Prototipos de funciones privadas
+static uint8_t Calcular_Destino(uint8_t altura);
+bool Cola_Vacia(sColaCajas* cola);
+static void Enqueue_Caja(sColaCajas* cola, uint8_t altura_medida);
+static sCaja* Peek_Caja(sColaCajas* cola);
+static sCaja Dequeue_Caja(sColaCajas* cola);
+
 // Variables estáticas (privadas al módulo) para mantener el estado
-static eCintaState estado_actual = CINTA_IDLE;
 static eCintaState estado_medicion = CINTA_IDLE;
-static sColaCajas  fifo_cajas = { .head = 0, .tail = 0, .count = 0 };
 
 // Variable para las secuecias de Heartbeat
-static uint8_t timeout_hb = 0;
-static uint8_t tick_hb = 0;
+static uint32_t timeout_hb = 0;
+static uint32_t tick_hb = 0;
 
 // Variables para el calculo de velocidad
-static uint8_t t_inicio_caja = 0;
+static uint32_t t_inicio_caja = 0;
 
 // Variables de temporización asíncrona
 static uint32_t t_inicio_micros = 0;
@@ -28,22 +33,11 @@ static sSensores control_sensores[4] = {
     { .last_state = 1, .actual_state = 1 }  // Sensor S3
 };
 
-// Variables de la máquina de medición (S0)
-static uint32_t t_inicio_micros = 0;
-
 // Arreglo de 3 colas: 
 // [0] Tramo S0->S1 | [1] Tramo S1->S2 | [2] Tramo S2->S3
 static sColaCajas colas_zonas[3];
 
-// Prototipos de funciones privadas
-static uint8_t Calcular_destino(uint8_t altura);
-bool Cola_Vacia(sColaCajas* cola);
-static void Enqueue_Caja(sColaCajas* cola, uint8_t altura_medida);
-static sCaja* Peek_caja(void);
-static sCaja Dequeue_caja(void);
-
 void App_Cinta_Init(void) {
-    estado_actual = CINTA_IDLE;
     estado_medicion = CINTA_IDLE;
     HAL_GPIO_SET_OUTPUT(DDRB, PIN_TRIGGER);
     HAL_GPIO_SET_INPUT(DDRB, PIN_ECHO);
@@ -61,15 +55,27 @@ void App_Cinta_Task(void) {
     // Flanco de subida en S0 (La caja terminó de pasar)
     if (control_sensores[0].actual_state == 1 && control_sensores[0].last_state == 0) {
         
-        // 1. Calculamos cuánto tiempo estuvo tapado S0 (en milisegundos)
+        // 1. ¿Cuánto tiempo tardó en pasar la caja por el sensor?
         uint32_t delta_t_ms = HAL_GetMillis() - t_inicio_caja;
         
-        // 2. Cálculo de Velocidad
-        // Sabiendo que el largo de la caja es constante (ej. 10 cm = 100 mm)
-        // Velocidad [mm/ms] = Largo [mm] / delta_t_ms
+        // 2. Factor geométrico: Distancia a S1 / Largo de la Caja
+        // Asumimos que la distancia a S1 es el triple del largo de la caja
+        uint8_t factor_distancia = 3; 
         
-        // Guardamos este delta_t o la velocidad calculada en una variable global
-        // velocidad_cinta_actual = ...
+        // 3. Calculamos el tiempo de viaje estimado (matemática entera)
+        uint32_t tiempo_viaje_estimado = delta_t_ms * factor_distancia;
+        
+        // 4. Calculamos el TICK EXACTO de llegada en el futuro
+        uint32_t tick_esperado = HAL_GetMillis() + tiempo_viaje_estimado;
+        
+        // 5. Se lo asignamos a la caja que acabamos de meter en la zona 0
+        if (!Cola_Vacia(&colas_zonas[0])) {
+            // Retrocedemos 1 paso desde el 'head' para agarrar la última caja escrita.
+            // Si el head es 0, damos la vuelta al final del Ring Buffer (MAX_CAJAS - 1)
+            uint8_t idx_ultima_caja = (colas_zonas[0].head == 0) ? (MAX_CAJAS_EN_CINTA - 1) : (colas_zonas[0].head - 1);
+            
+            colas_zonas[0].buffer[idx_ultima_caja].tick_eta = tick_esperado;
+        }
     }
     
     // ---------------------------------------------------------
@@ -85,6 +91,7 @@ void App_Cinta_Task(void) {
             // Detección de flanco descendente en S0 para iniciar medición
             if (control_sensores[0].actual_state == 0 && control_sensores[0].last_state == 1) { 
                 HAL_GPIO_WRITE_HIGH(PORTB, 1); // Trigger ON
+                t_inicio_caja = HAL_GetMillis();
                 t_inicio_micros = HAL_GetMicros();
                 estado_medicion = CINTA_TRIGGER_ON;
             }
@@ -125,27 +132,46 @@ void App_Cinta_Task(void) {
     // ---------------------------------------------------------
     // SUBSISTEMA 2: Polling de Zonas de Tránsito (Checkpoints)
     // ---------------------------------------------------------
-    for (uint8_t i = 1; i < 4; i++) {
+    for (uint8_t i = 0; i < 3; i++) {
+        // 1. Lectura del hardware
         switch(i) {
-            case 1: control_sensores[i].actual_state = LEER_SENSOR_S1(); break;
-            case 2: control_sensores[i].actual_state = LEER_SENSOR_S2(); break;
-            case 3: control_sensores[i].actual_state = LEER_SENSOR_S3(); break;
+            case 0: control_sensores[i+1].actual_state = LEER_SENSOR_S1(); break;
+            case 1: control_sensores[i+1].actual_state = LEER_SENSOR_S2(); break;
+            case 2: control_sensores[i+1].actual_state = LEER_SENSOR_S3(); break;
         }
 
-        if (control_sensores[i].actual_state == 0 && control_sensores[i].last_state == 1 && !Cola_Vacia(&colas_zonas[i])) {
-            sCaja* caja_actual = Peek_Caja(&colas_zonas[i]);
+        // Solo evaluamos si hay cajas viajando en esta zona
+        if (!Cola_Vacia(&colas_zonas[i])) {
             
-            if (caja_actual->destino_salida == (i + 1)) { 
-                HAL_Servo_SetAngle(i, 90); 
-                control_servos[i].tick_inicio = HAL_GetMillis();
-                control_servos[i].en_movimiento = true;
-            } else {
-                if (i < 3) { // Protección de desborde de memoria
-                    Enqueue_Caja(&colas_zonas[i + 1], caja_actual->altura); 
+            sCaja* caja_esperada = Peek_Caja(&colas_zonas[i]);
+            
+            // A. Condición 1: Sensor Físico (Flanco de bajada)
+            bool det_fisica = (control_sensores[i].actual_state == 0 && control_sensores[i].last_state == 1);
+            
+            // B. Condición 2: Sensor Virtual / ETA (Con margen de 1000ms)
+            bool det_virtual = (HAL_GetMillis() >= (caja_esperada->tick_eta + 1000));
+            
+            // C. FUSIÓN: Si la ve el sensor físico O se vence el tiempo
+            if (det_fisica || det_virtual) {
+                
+                // Evaluamos si es para esta salida
+                if (caja_esperada->destino_salida == (i + 1)) { 
+                    HAL_Servo_SetAngle(i, 90); 
+                    control_servos[i].tick_inicio = HAL_GetMillis();
+                    control_servos[i].en_movimiento = true;
+                } else {
+                    // TRASVASE: Avanza a la siguiente zona
+                    if (i < 2) { 
+                        Enqueue_Caja(&colas_zonas[i + 1], caja_esperada->altura); 
+                    }
                 }
+                
+                // CRÍTICO: La caja abandona la memoria de la zona actual
+                Dequeue_Caja(&colas_zonas[i]);
             }
-            Dequeue_Caja(&colas_zonas[i]);
         }
+        
+        // Actualización de memoria del sensor físico
         control_sensores[i].last_state = control_sensores[i].actual_state;
     }
 
@@ -192,7 +218,7 @@ void App_Cinta_Task(void) {
     control_sensores[0].last_state = control_sensores[0].actual_state;
 }
 
-static uint8_t calcular_destino(uint8_t altura) {
+static uint8_t Calcular_Destino(uint8_t altura) {
     if (altura >= (ALTURA_CAJA_CHICA - TOLERANCIA_MEDICION) && altura <= (ALTURA_CAJA_CHICA + TOLERANCIA_MEDICION)) {
         return 1;
     } else if (altura >= (ALTURA_CAJA_MEDIANA - TOLERANCIA_MEDICION) && altura <= (ALTURA_CAJA_MEDIANA + TOLERANCIA_MEDICION)) {
@@ -214,7 +240,7 @@ static void Enqueue_Caja(sColaCajas* cola, uint8_t altura_medida) {
     if (cola->count < MAX_CAJAS_EN_CINTA) {
         // 1. Guardamos los datos en la posición actual del head
         cola->buffer[cola->head].altura = altura_medida;
-        cola->buffer[cola->head].destino_salida = calcular_destino(altura_medida);
+        cola->buffer[cola->head].destino_salida = Calcular_Destino(altura_medida);
         
         // 2. Avanzamos el head de forma circular usando el módulo (%)
         cola->head = (cola->head + 1) % MAX_CAJAS_EN_CINTA;

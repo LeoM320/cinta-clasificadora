@@ -31,6 +31,7 @@
 // Enumeracion de los estado de la máquina
 typedef enum {
     CINTA_OFF,
+    CINTA_CALIBRANDO,
     CINTA_IDLE,
     CINTA_TRIGGER_ON,
     CINTA_ESPERANDO_ECHO,
@@ -43,6 +44,7 @@ typedef enum {
 typedef struct {
     uint8_t altura;
     uint8_t destino_salida; // 1, 2 o 3 correspondientes a S1, S2, S3
+    uint32_t tick_eta;
 } sCaja;
 
 // Estructura para el control asíncrono de cada servo de forma independiente
