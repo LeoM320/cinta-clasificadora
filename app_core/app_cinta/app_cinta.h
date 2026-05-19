@@ -1,92 +1,76 @@
 #ifndef APP_CINTA_H_
 #define APP_CINTA_H_
 
-// 1. Librerías estándar
+#include "hal_gpio.h"
+#include "hal_timer.h"
+#include "hal_servo.h"
+#include "hcsr04.h"
+#include "debounce.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <avr/common.h>
 #include <stddef.h>
 
-// 2. Configuración de hardware y HAL
-#include "../config/hardware.h"
-#include "../hal/include/hal_gpio.h"
-#include "../hal/include/hal_timer.h"
-#include "../hal/include/hal_servo.h"
-
-// ==========================================
-// DEFINICIONES Y MACROS
-// ==========================================
+// Definición de umbrales por defecto para clasificación (en centímetros)
 #define ALTURA_CAJA_CHICA    6
 #define ALTURA_CAJA_MEDIANA  8
 #define ALTURA_CAJA_GRANDE   10
-#define TOLERANCIA_MEDICION  1
+#define TOLERANCIA_MEDICION  1 // +/- 1 cm
 
-#define PIN_ECHO             PB2
-#define PIN_TRIGGER          PB1
+// Parametrización física de la cinta (en milímetros para matemática entera)
+#define LARGO_CAJA_MM               100  // 10 cm de largo estimado
+#define DISTANCIA_SENSOR_SERVO_MM   30   // 3 cm de separación en la maqueta
 
-// Macros físicas faltantes (Ajustá estos valores según tu maqueta)
-#define DISTANCIA_SENSOR_SERVO_MM 300 
-#define LARGO_CAJA_MM             100 
-
+// Capacidad del Ring Buffer para cajas en tránsito
 #define MAX_CAJAS_EN_CINTA 20
 
-#define LEER_SENSOR_S1() (HAL_GPIO_READ(IR1_PIN_REG, IR1_PIN))
-#define LEER_SENSOR_S2() (HAL_GPIO_READ(IR2_PIN_REG, IR2_PIN))
-#define LEER_SENSOR_S3() (HAL_GPIO_READ(IR3_PIN_REG, IR3_PIN))
+// Macros de lectura directa de hardware para checkpoints
+#define LEER_SENSOR_S1() (HAL_GPIO_READ(PIND, 3))
+#define LEER_SENSOR_S2() (HAL_GPIO_READ(PIND, 4))
+#define LEER_SENSOR_S3() (HAL_GPIO_READ(PIND, 5))
 
-// ==========================================
-// ESTRUCTURAS DE DATOS Y ESTADOS
-// ==========================================
-
+// Enumeración limpia de los estados de la máquina de ingreso
 typedef enum {
     CINTA_OFF,
-    CINTA_CALIBRANDO,
     CINTA_IDLE,
-    CINTA_TRIGGER_ON,
-    CINTA_ESPERANDO_ECHO,
-    CINTA_MIDIENDO_ECHO,
-    CINTA_ESPERANDO_MEDICION, // <- Agregado para solucionar tu error
-    CINTA_EN_TRANSITO,
-    CINTA_EYECTANDO
-} eCintaState;
+    CINTA_ESPERANDO_MEDICION
+} _eCintaState;
 
-// Estructura de la Caja (Con alias para sCaja y _sCaja)
+// Estructura de una caja
 typedef struct {
     uint8_t altura;
-    uint8_t destino_salida;
+    uint8_t destino_salida; // 1, 2 o 3 correspondientes a S1, S2, S3
     uint32_t tick_eta;
-} sCaja;
-typedef sCaja _sCaja; // Alias para evitar el error "_sCaja"
+} _sCaja;
 
-// Cola Circular
+// Estructura para el control asíncrono de cada servo de forma independiente
 typedef struct {
-    sCaja buffer[MAX_CAJAS_EN_CINTA];
-    uint8_t head;
-    uint8_t tail;
-    uint8_t count;
-} sColaCajas;
-typedef sColaCajas _sColaCajas;
-
-// Estado del Servo (Con los campos faltantes agregados)
-typedef struct {
+    bool esperando_activacion; // Bandera para saber si el servo está esperando su momento
+    uint32_t tick_programado;  // Momento exacto en el que debe golpear
     bool en_movimiento;
-    uint32_t tick_inicio;
-    bool esperando_activacion; // <- Faltaba
-    uint32_t tick_programado;  // <- Faltaba
-} sEstadoServo;
-typedef sEstadoServo _sEstadoServo;
+    uint32_t tick_inicio;      // Momento en que empezó a moverse para luego retraerlo
+} _sEstadoServo;
 
-// Estado de Sensores
+// Estructura para guardar los estados de los sensores
 typedef struct {
     uint8_t last_state;
     uint8_t actual_state;
-} sSensores;
-typedef sSensores _sSensores;
+} _sSensores;
 
-// ==========================================
-// API PÚBLICA
-// ==========================================
+// FIFO para el seguimiento de cajas
+typedef struct {
+    _sCaja buffer[MAX_CAJAS_EN_CINTA];
+    uint8_t head; // Índice de inserción (PUSH)
+    uint8_t tail; // Índice de extracción (POP)
+    uint8_t count;
+} _sColaCajas;
+
+// API Pública
 void App_Cinta_Init(void);
 void App_Cinta_Task(void);
+// Función para recibir la configuración dinámica desde el protocolo (UART/Qt)
 void App_Cinta_ConfigurarSalida(uint8_t salida_idx, uint8_t altura_asignada);
 
 #endif /* APP_CINTA_H_ */
