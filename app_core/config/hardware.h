@@ -13,11 +13,25 @@
 
 #include <avr/io.h>
 
+/**
+ * @defgroup Interrupt_Config Control de Interrupciones Globales
+ * @brief Abstracción para el manejo del bit de interrupción (I-bit).
+ * @{
+ */
+#include <avr/interrupt.h>
+
 /** * @brief Frecuencia del CPU (16 MHz) 
  */
 #ifndef F_CPU
 #define F_CPU 16000000UL
 #endif
+
+/** @brief Habilita las interrupciones globales de hardware */
+#define HAL_ENABLE_INTERRUPTS()  sei()
+
+/** @brief Deshabilita las interrupciones globales de hardware */
+#define HAL_DISABLE_INTERRUPTS() cli()
+/** @} */
 
 /**
  * @defgroup Ultrasonic_Config Sensor Ultrasónico HC-SR04
