@@ -1,11 +1,8 @@
 /**
  * @file gpio.c
- * @brief Implementación de la inicialización de los pines (GPIO) del sistema.
+ * @brief Implementación de la rutina de inicialización de pines del sistema.
  * @author LeoM320
  * @date 14 de Mayo de 2026
- * * Este archivo contiene la función principal para configurar la dirección y 
- * el estado inicial de todos los pines físicos utilizados en la cinta clasificadora,
- * haciendo uso de la capa de abstracción de hardware (HAL_GPIO).
  */
 
 #include "gpio.h"
@@ -13,28 +10,39 @@
 #include "../hal/include/hal_gpio.h"
 
 /**
- * @brief Inicializa los puertos de entrada y salida del microcontrolador.
- * * @details Esta función configura los siguientes periféricos:
- * - HC-SR04: Pin Trigger (Salida en Bajo) y Pin Echo (Entrada sin pull-up).
- * - Servomotores: Pines de control PWM configurados como Salidas en Bajo.
- * - LED de estado: Configurado como Salida en Bajo.
- * - TCRT5000: Sensores infrarrojos configurados como Entradas.
- * - Cinta: Motor principal configurado como Salida en Bajo.
- * * @note Deshabilita el buffer digital en los pines analógicos (DIDR0)
- * correspondientes a los sensores IR para reducir el consumo de energía.
- * * @return void No devuelve ningún valor.
+ * @brief Prepara eléctricamente los puertos del microcontrolador al arrancar.
+ * 
+ * @details 
+ * La estrategia de configuración para los pines de salida sigue un patrón "Glitch-Free":
+ * Primero se fuerza el registro de datos (`PORTx`) a un nivel bajo, y luego se abre 
+ * la compuerta de dirección (`DDRx`). Esto evita que los actuadores o servomotores 
+ * den un "tirón" indeseado al encender el equipo.
+ * 
+ * Configuraciones aplicadas:
+ * - **HC-SR04:** Pin Trigger como Salida (estado BAJO); Pin Echo como Entrada (alta impedancia).
+ * - **Servomotores (PWM):** Pines forzados a Salida en estado BAJO.
+ * - **Indicadores:** LED de diagnóstico como Salida.
+ * - **Sensores IR (TCRT5000):** Pines digitales configurados como Entradas limpias (sin pull-up).
+ * - **Potencia:** Cinta transportadora apagada (Salida en BAJO).
+ * 
+ * @note Como optimización de bajo consumo, se deshabilita el buffer de entrada 
+ *       digital en los canales analógicos utilizados por los sensores IR mediante 
+ *       el registro DIDR0 (Digital Input Disable Register 0).
  */
 void GPIO_Init(void)
 {
-    // Trigger HC-SR04
-    HAL_GPIO_WRITE_LOW(TRIGGER_PORT, TRIGGER_PIN); // 1. Estado inicial BAJO
-    HAL_GPIO_SET_OUTPUT(TRIGGER_DDR, TRIGGER_PIN); // 2. Configurar como SALIDA
+    // ==========================================
+    // Sensor Ultrasónico HC-SR04
+    // ==========================================
+    HAL_GPIO_WRITE_LOW(TRIGGER_PORT, TRIGGER_PIN); // 1. Asegurar estado BAJO
+    HAL_GPIO_SET_OUTPUT(TRIGGER_DDR, TRIGGER_PIN); // 2. Abrir como SALIDA
 
-    // Echo HC-SR04 (Entrada sin pull-up)
-    HAL_GPIO_WRITE_LOW(ECHO_PORT, ECHO_PIN);       // 1. Desactivar pull-up
-    HAL_GPIO_SET_INPUT(ECHO_DDR, ECHO_PIN);        // 2. Configurar como ENTRADA
+    HAL_GPIO_WRITE_LOW(ECHO_PORT, ECHO_PIN);       // 1. Desactivar resistencia Pull-up
+    HAL_GPIO_SET_INPUT(ECHO_DDR, ECHO_PIN);        // 2. Configurar como ENTRADA de alta impedancia
 
-    // Servos
+    // ==========================================
+    // Servomotores (Actuadores de clasificación)
+    // ==========================================
     HAL_GPIO_WRITE_LOW(SERVO1_PORT, SERVO1_PIN);
     HAL_GPIO_SET_OUTPUT(SERVO1_DDR, SERVO1_PIN);
     
@@ -44,11 +52,15 @@ void GPIO_Init(void)
     HAL_GPIO_WRITE_LOW(SERVO3_PORT, SERVO3_PIN);
     HAL_GPIO_SET_OUTPUT(SERVO3_DDR, SERVO3_PIN);
     
-    // LED de estado
+    // ==========================================
+    // Telemetría / LED de Estado
+    // ==========================================
     HAL_GPIO_WRITE_LOW(STATUS_LED_PORT, STATUS_LED_PIN);
     HAL_GPIO_SET_OUTPUT(STATUS_LED_DDR, STATUS_LED_PIN);
 
-    // TCRT5000 como entradas sin pull-up
+    // ==========================================
+    // Sensores Infrarrojos TCRT5000 (Modo Digital)
+    // ==========================================
     HAL_GPIO_WRITE_LOW(IR0_PORT, IR0_PIN);
     HAL_GPIO_SET_INPUT(IR0_DDR, IR0_PIN);
     
@@ -61,10 +73,17 @@ void GPIO_Init(void)
     HAL_GPIO_WRITE_LOW(IR3_PORT, IR3_PIN);
     HAL_GPIO_SET_INPUT(IR3_DDR, IR3_PIN);
     
-    // Deshabilitar buffer digital en pines analógicos para ahorrar energía
-    DIDR0 |= (1 << IR0_PIN) | (1 << IR1_PIN) | (1 << IR2_PIN) | (1 << IR3_PIN);
+    // Optimización de energía:
+    // Si los canales ADC se usan para leer la versión analógica de los IR, 
+    // deshabilitamos el comparador digital en esos pines físicos (A2, A3, A4, A5) 
+    // para evitar que niveles intermedios de voltaje generen consumo estático 
+    // oscilante en los transistores de entrada del microcontrolador.
+    DIDR0 |= (1 << IR0_ADC_CHANNEL) | (1 << IR1_ADC_CHANNEL) | 
+             (1 << IR2_ADC_CHANNEL) | (1 << IR3_ADC_CHANNEL);
 
-    // Cinta transportadora
+    // ==========================================
+    // Cinta Transportadora
+    // ==========================================
     HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
     HAL_GPIO_SET_OUTPUT(CINTA_DDR, CINTA_PIN);
 }

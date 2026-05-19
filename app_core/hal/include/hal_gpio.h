@@ -4,10 +4,14 @@
  * @author LeoM320
  * @date 14 de Mayo de 2026
  *
- * @details Este archivo proporciona macros de preprocesador altamente eficientes
- * para la manipulación directa de los registros de entrada/salida del ATMega328P.
- * Al usar macros en lugar de funciones, se evita el tiempo de salto en memoria, 
- * logrando una ejecución en un solo ciclo de reloj de la CPU.
+ * @details 
+ * Este archivo proporciona macros de preprocesador altamente eficientes
+ * para la manipulación directa de los registros de entrada/salida.
+ * Al usar macros en lugar de funciones, se evita el overhead de los saltos 
+ * en memoria (CALL/RET). Si los argumentos son constantes conocidas en tiempo 
+ * de compilación, GCC traduce estas operaciones directamente a instrucciones 
+ * atómicas de hardware (SBI y CBI), garantizando máxima velocidad y seguridad 
+ * frente a interrupciones.
  */
 
 #ifndef HAL_GPIO_H_
@@ -39,25 +43,27 @@
 
 /**
  * @def HAL_GPIO_WRITE_HIGH(port, pin)
- * @brief Establece el estado lógico de un pin de salida en ALTO (5V).
+ * @brief Establece el estado lógico de un pin de salida en ALTO (VCC).
  * @param port Registro de datos del puerto (ej. PORTB, PORTD).
- * @param pin Número de pin a modificar (0 a 7).
+ * @param pin  Número de pin a modificar (0 a 7).
  */
 #define HAL_GPIO_WRITE_HIGH(port, pin) ((port) |= (1 << (pin)))
 
 /**
  * @def HAL_GPIO_WRITE_LOW(port, pin)
- * @brief Establece el estado lógico de un pin de salida en BAJO (0V).
+ * @brief Establece el estado lógico de un pin de salida en BAJO (GND).
  * @param port Registro de datos del puerto (ej. PORTB, PORTD).
- * @param pin Número de pin a modificar (0 a 7).
+ * @param pin  Número de pin a modificar (0 a 7).
  */
 #define HAL_GPIO_WRITE_LOW(port, pin)  ((port) &= ~(1 << (pin)))
 
 /**
  * @def HAL_GPIO_TOGGLE(port, pin)
  * @brief Invierte (hace toggle) el estado lógico actual de un pin de salida.
+ * @note  En arquitecturas AVR modernas, escribir un '1' en el registro PINx 
+ *        también hace toggle, pero esta macro mantiene compatibilidad universal.
  * @param port Registro de datos del puerto (ej. PORTB, PORTD).
- * @param pin Número de pin a invertir (0 a 7).
+ * @param pin  Número de pin a invertir (0 a 7).
  */
 #define HAL_GPIO_TOGGLE(port, pin)     ((port) ^= (1 << (pin)))
 
@@ -67,10 +73,10 @@
 
 /**
  * @def HAL_GPIO_READ(pin_reg, pin)
- * @brief Lee el estado lógico físico actual de un pin configurado como entrada.
+ * @brief Lee el estado lógico físico actual de un pin.
  * @param pin_reg Registro de pines de entrada del puerto (ej. PINB, PIND).
- * @param pin Número de pin a leer (0 a 7).
- * @return Un valor mayor a 0 si el pin está en estado ALTO, o 0 si está en BAJO.
+ * @param pin     Número de pin a leer (0 a 7).
+ * @return        Un valor mayor a 0 si el pin está en estado ALTO, o 0 si está en BAJO.
  */
 #define HAL_GPIO_READ(pin_reg, pin)    ((pin_reg) & (1 << (pin)))
 

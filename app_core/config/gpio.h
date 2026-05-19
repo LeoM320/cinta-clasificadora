@@ -1,24 +1,30 @@
 /**
  * @file gpio.h
- * @brief Definiciones y prototipos para la inicialización de GPIO.
+ * @brief Interfaz principal para la inicialización y ruteo físico de la placa (GPIO).
  * @author LeoM320
  * @date 14 de Mayo de 2026
  *
- * @details Este archivo actúa como la interfaz de configuración de hardware
- * para el proyecto, permitiendo que la aplicación principal configure todos
- * los pines de la placa con una sola llamada a función.
+ * @details 
+ * Este archivo actúa como el orquestador de la configuración de hardware.
+ * Permite que la aplicación principal prepare todos los pines del microcontrolador 
+ * (entradas, salidas y estados de reposo) mediante una única invocación, 
+ * abstrayendo la complejidad de los registros DDRx y PORTx.
  */
 
 #ifndef CONFIG_GPIO_H_
 #define CONFIG_GPIO_H_
 
 /**
- * @brief Configura la dirección y el estado inicial de todos los pines del sistema.
- * * @details Utiliza las macros de hal_gpio.h y las definiciones de hardware.h 
- * para establecer los estados de los sensores ultrasónicos, infrarrojos, 
- * servomotores y actuadores de la cinta.
- * * @note Esta función debe ser llamada al inicio del main(), antes de 
- * inicializar cualquier otro periférico que dependa de los pines (como UART o Timers).
+ * @brief Configura la dirección y el estado eléctrico inicial de todos los pines.
+ * 
+ * @details 
+ * Aplica la configuración definida en `hardware.h` para establecer los estados 
+ * seguros (Fail-Safe) de los actuadores (cinta y servos) y prepara las entradas 
+ * de los sensores (ultrasónico e infrarrojos).
+ * 
+ * @warning Esta función debe ser la primera en ejecutarse dentro de `main()`, 
+ *          estrictamente antes de habilitar las interrupciones globales (`sei()`) 
+ *          y antes de inicializar periféricos complejos como UART o Timers.
  */
 void GPIO_Init(void);
 
