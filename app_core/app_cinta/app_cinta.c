@@ -1,12 +1,14 @@
 #include "app_cinta.h"
-// Incluiríamos también tu mapeo de pines, asumo macros como PIN_ECHO, PORT_TRIGGER, etc.
+
+// Requerido por el Subsistema 4 para leer el Ring Buffer
+#include "../hal/include/hal_uart.h"
 
 // Prototipos de funciones privadas
 static uint8_t Calcular_Destino(uint8_t altura);
-static bool Cola_Vacia(_sColaCajas* cola);
-static void Enqueue_Caja(_sColaCajas* cola, uint8_t altura_medida);
-static _sCaja* Peek_Caja(_sColaCajas* cola);
-static _sCaja Dequeue_Caja(_sColaCajas* cola);
+bool Cola_Vacia(sColaCajas* cola);
+static void Enqueue_Caja(sColaCajas* cola, uint8_t altura_medida);
+static sCaja* Peek_Caja(sColaCajas* cola);
+static sCaja Dequeue_Caja(sColaCajas* cola);
 
 // Variables estáticas (privadas al módulo) para mantener el estado
 static _eCintaState estado_medicion = CINTA_IDLE;
@@ -23,6 +25,8 @@ static uint32_t t_inicio_caja = 0;
 
 // Configuración de las salidas (Por defecto)
 static uint8_t config_alturas_salida[3] = {ALTURA_CAJA_CHICA, ALTURA_CAJA_MEDIANA, ALTURA_CAJA_GRANDE};
+
+static uint8_t Calcular_Altura(uint32_t tiempo_vuelo_us);
 
 static _sEstadoServo control_servos[3];
 static _sSensores control_sensores[4] = {
@@ -334,3 +338,19 @@ void App_Cinta_ConfigurarSalida(uint8_t salida_idx, uint8_t altura_asignada) {
     }
 }
 
+// Definí a qué altura física está el sensor respecto a la cinta (ej. 20 cm)
+#define ALTURA_FISICA_SENSOR_CM 20 
+
+static uint8_t Calcular_Altura(uint32_t tiempo_vuelo_us) {
+    // 1. Convertir tiempo a distancia (dividiendo por 58)
+    uint16_t distancia_vacia = tiempo_vuelo_us / 58; 
+    
+    // 2. Seguridad: Si la distancia medida es mayor a la altura del sensor, 
+    // significa que no hay caja o hubo un error de lectura.
+    if (distancia_vacia >= ALTURA_FISICA_SENSOR_CM) {
+        return 0; 
+    }
+    
+    // 3. La altura de la caja es la diferencia
+    return (uint8_t)(ALTURA_FISICA_SENSOR_CM - distancia_vacia);
+}

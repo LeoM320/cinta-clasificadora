@@ -1,27 +1,24 @@
 #ifndef APP_CINTA_H_
 #define APP_CINTA_H_
 
-#include "hal_gpio.h"
-#include "hal_timer.h"
-#include "hal_servo.h"
-#include "hcsr04.h"
-#include "debounce.h"
+// 1. Librerías estándar
 #include <stdint.h>
 #include <stdbool.h>
-#include <avr/io.h>
-//#include <util/delay.h>
-#include <avr/interrupt.h>
-#include <avr/common.h>
 #include <stddef.h>
 
+// 2. Configuración centralizada de hardware (Aporta <avr/io.h> y macros de pines)
+#include "../config/hardware.h"
+
+// 3. Capa de Abstracción de Hardware (HAL)
+#include "../hal/include/hal_gpio.h"
+#include "../hal/include/hal_timer.h"
+#include "../hal/include/hal_servo.h"
 
 // Definición de umbrales para clasificación (en centímetros)
 #define ALTURA_CAJA_CHICA    6
 #define ALTURA_CAJA_MEDIANA  8
 #define ALTURA_CAJA_GRANDE   10
 #define TOLERANCIA_MEDICION  1 // +/- 1 cm
-#define PIN_ECHO             PB2
-#define PIN_TRIGGER          PB1
 
 // Parametrización física de la cinta (en milímetros para matemática entera)
 #define LARGO_CAJA_MM               100  // 10 cm de largo estimado
