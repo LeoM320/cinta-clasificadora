@@ -1,17 +1,27 @@
-#include "app_cinta.h"
+// ==========================================
+// 1. INCLUSIONES (El orden es fundamental)
+// ==========================================
+#include "app_cinta.h"                // DEBE ir primero, acá viven sCaja y sColaCajas
 
-// Requerido por el Subsistema 4 para leer el Ring Buffer
-#include "../hal/include/hal_uart.h"
+#include "../hal/include/hal_uart.h"  // Para RX/TX de la UART
+#include "../drivers/hcsr04.h"        // Para HCSR04_Init, HCSR04_Task, etc.
+#include "../utils/debounce.h"        // Para Debouncer_t y Debounce_Update
 
-// Prototipos de funciones privadas
+// ==========================================
+// 2. PROTOTIPOS DE FUNCIONES PRIVADAS
+// ==========================================
+// Como ya incluimos app_cinta.h arriba, el compilador ya sabe qué es "sCaja"
 static uint8_t Calcular_Destino(uint8_t altura);
-bool Cola_Vacia(sColaCajas* cola);
+static uint8_t Calcular_Altura(uint32_t tiempo_vuelo_us);
+bool Cola_Vacia(sColaCajas* cola); // Sin 'static', coincidiendo con tu definición de abajo
 static void Enqueue_Caja(sColaCajas* cola, uint8_t altura_medida);
 static sCaja* Peek_Caja(sColaCajas* cola);
 static sCaja Dequeue_Caja(sColaCajas* cola);
 
-// Variables estáticas (privadas al módulo) para mantener el estado
-static _eCintaState estado_medicion = CINTA_IDLE;
+// ==========================================
+// 3. VARIABLES ESTÁTICAS / GLOBALES
+// ==========================================
+static eCintaState estado_medicion = CINTA_IDLE;
 
 // Variable para las secuecias de Heartbeat
 static uint32_t timeout_hb = 0;
@@ -182,7 +192,7 @@ void App_Cinta_Task(void) {
                 // Si se activó por tiempo pero NO por sensor físico, el sensor está tapado/roto
                 if (det_virtual && !det_fisica) {
                     // Le enviamos el código 0xE1 (Error de Sensor) a la interfaz de Qt
-                    HAL_UART_TxWrite(0xE1);
+                    HAL_UART_TxByte(0xE1);
                 }
 
                 // Evaluamos si es para esta salida
