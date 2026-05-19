@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QQmlContext>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -8,18 +9,12 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Inicializamos el puerto serie y conectamos la recepción
     puertoSerie = new UnerSerialQT(this);
     connect(puertoSerie->Direccion(), &QSerialPort::readyRead, this, &MainWindow::onRx);
     puertoSerie->ListarPuertos(ui->comboBoxPuertos);
 
-    // 1. Configurar que el QML se adapte al tamaño del widget contenedor
     ui->visorQml->setResizeMode(QQuickWidget::SizeRootObjectToView);
-
-    // 2. Inyectar 'this' (MainWindow) al QML con el nombre "backend"
     ui->visorQml->rootContext()->setContextProperty("backend", this);
-
-    // 3. Cargar el archivo QML
     ui->visorQml->setSource(QUrl("qrc:/interfaz.qml"));
 }
 
@@ -28,99 +23,141 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::iniciarMotorDesdeC()
+// ==========================================
+// SLOTS DE CONTROL (QML -> C++)
+// ==========================================
+
+void MainWindow::encenderCinta()
 {
-    qDebug() << "¡QML presionó el botón! Llamando a la librería en C...";
+    if (!puertoSerie->Comprobar()) return;
+    puertoSerie->AbrirCarga(2);
+    puertoSerie->AgregarDato((uint8_t)0x06); // CMD_SET_BELT
+    puertoSerie->AgregarDato((uint8_t)0x01); // 1 = Encender
+    puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
-// NUEVA IMPLEMENTACIÓN: Toma los valores de QML y los manda al microcontrolador
-void MainWindow::configurarHeartbeat(bool habilitado, int periodo)
+void MainWindow::apagarCinta()
 {
-    if (puertoSerie->Comprobar()) {
-        // La carga total es 4 bytes: [ID: 1 byte] + [Habilitado: 1 byte] + [Periodo: 2 bytes]
-        puertoSerie->AbrirCarga(4);
-        puertoSerie->AgregarDato((uint8_t)0xAD); // Comando de configuración
-        puertoSerie->AgregarDato((uint8_t)(habilitado ? 1 : 0));
-        puertoSerie->AgregarDato((uint16_t)periodo);
-        puertoSerie->CerrarCarga();
-        puertoSerie->EnviarBufTx();
-
-        qDebug() << "Heartbeat configurado -> Estado:" << habilitado << "| Periodo:" << periodo << "ms";
-    } else {
-        qDebug() << "Ignorado: El puerto serie no está abierto.";
-    }
+    if (!puertoSerie->Comprobar()) return;
+    puertoSerie->AbrirCarga(2);
+    puertoSerie->AgregarDato((uint8_t)0x06); // CMD_SET_BELT
+    puertoSerie->AgregarDato((uint8_t)0x00); // 0 = Apagar
+    puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
+
+void MainWindow::setServo(int servoId, int angulo)
+{
+    if (!puertoSerie->Comprobar()) return;
+    if (servoId < 0 || servoId > 2) return;
+    if (angulo < 0 || angulo > 180) return;
+
+    puertoSerie->AbrirCarga(3);
+    puertoSerie->AgregarDato((uint8_t)0x03); // CMD_SET_SERVO
+    puertoSerie->AgregarDato((uint8_t)servoId);
+    puertoSerie->AgregarDato((uint8_t)angulo);
+    puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
+}
+
+void MainWindow::requestDistance()
+{
+    if (!puertoSerie->Comprobar()) return;
+    puertoSerie->AbrirCarga(1);
+    puertoSerie->AgregarDato((uint8_t)0x04); // CMD_GET_DISTANCE
+    puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
+}
+
+void MainWindow::requestIrStates()
+{
+    if (!puertoSerie->Comprobar()) return;
+    puertoSerie->AbrirCarga(1);
+    puertoSerie->AgregarDato((uint8_t)0x05); // CMD_GET_IR_STATES
+    puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
+}
+
+// ==========================================
+// RECEPCIÓN DE DATOS (C++ -> QML)
+// ==========================================
 
 void MainWindow::onRx()
 {
-    // Leemos los bytes entrantes
     puertoSerie->Recibir();
 
-    // Verificamos si se decodificó un paquete válido
     if (puertoSerie->Comando()) {
-        switch (puertoSerie->IDComando()) {
-        case 0xAA: // Recepción del latido (Heartbeat)
-            // Podrías poner una pequeña animación en QML o imprimir en consola
-            qDebug() << "Latido recibido:" << puertoSerie->ObtenerUint16_t(1);
-            break;
+        uint8_t cmdId = puertoSerie->IDComando();
 
-        case 0xAB: // Comando ALIVE de confirmación
+        switch (cmdId) {
+        case 0x81: // ACK_ALIVE
+        {
+            // uint32_t uptime = puertoSerie->ObtenerUint32_t(1); // Opcional
             ui->pushButtonOpenClose->setText("CLOSE");
             ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: green; color: black; font-weight: bold; }");
-            qDebug() << "Handshake exitoso. Conexión establecida.";
+            emit connectionStatusChanged(true); // Avisar a QML que estamos listos
             break;
-
-        case 0xFF:
-            // Otro comando de ejemplo
+        }
+        case 0x84: // ACK_GET_DISTANCE
+        {
+            uint16_t dist = puertoSerie->ObtenerUint16_t(1);
+            emit distanceUpdated(dist);
             break;
-
+        }
+        case 0x85: // ACK_GET_IR_STATES
+        {
+            uint8_t irPack = puertoSerie->ObtenerUint8_t(1);
+            // Desempaquetado de bits (Bit-Unpacking)
+            bool ir0 = (irPack & (1 << 0)) != 0;
+            bool ir1 = (irPack & (1 << 1)) != 0;
+            bool ir2 = (irPack & (1 << 2)) != 0;
+            bool ir3 = (irPack & (1 << 3)) != 0;
+            emit irStatesUpdated(ir0, ir1, ir2, ir3);
+            break;
+        }
+        case 0x86: // ACK_SET_BELT
+        case 0x83: // ACK_SET_SERVO
+            // Confirmaciones silenciosas, se pueden omitir del log si se desea
+            break;
         default:
-            qDebug() << "Comando desconocido recibido:" << Qt::hex << puertoSerie->IDComando();
+            qDebug() << "RX Desconocido o Error:" << Qt::hex << cmdId;
             break;
         }
     }
 }
 
-void MainWindow::onTimer()
-{
-    //puertoSerie->Transmitir();
-}
+// ==========================================
+// BOTÓN CONEXIÓN
+// ==========================================
 
 void MainWindow::on_pushButtonOpenClose_clicked()
 {
     if (puertoSerie->Comprobar()) {
-        // --- PROCESO DE DESCONEXIÓN ---
-
-        // 1. Enviamos el mensaje de finalización (0xAC)
-        puertoSerie->AbrirCarga(sizeof(uint8_t));
-        puertoSerie->AgregarDato((uint8_t)0xAC);
-        puertoSerie->CerrarCarga();
-        puertoSerie->EnviarBufTx();
-
-        // 2. Esperamos 50ms asíncronos antes de cerrar el puerto
+        // --- DESCONEXIÓN ---
+        emit connectionStatusChanged(false); // Detener el polling en QML
         QTimer::singleShot(50, this, [this]() {
             puertoSerie->CerrarPuerto();
             ui->pushButtonOpenClose->setText("OPEN");
             ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: red; color: white; font-weight: bold; }");
-            qDebug() << "Puerto cerrado.";
         });
-
     } else {
-        // --- PROCESO DE CONEXIÓN ---
-
-        if (puertoSerie->AbrirPuerto(ui->comboBoxPuertos->currentText(), QSerialPort::Baud115200, QIODevice::ReadWrite)) {
-
-            // 1. Cambiamos la interfaz a estado de ESPERA
+        // --- CONEXIÓN ---
+        if (puertoSerie->AbrirPuerto(ui->comboBoxPuertos->currentText(),
+                                     QSerialPort::Baud115200,
+                                     QIODevice::ReadWrite)) {
             ui->pushButtonOpenClose->setText("WAIT...");
             ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: yellow; color: black; font-weight: bold; }");
 
-            // 2. Enviamos el mensaje de Alive (0xAB) al micro
-            puertoSerie->AbrirCarga(sizeof(uint8_t));
-            puertoSerie->AgregarDato((uint8_t)0xAB);
+            // Enviar Petición ALIVE (0x01)
+            puertoSerie->AbrirCarga(1);
+            puertoSerie->AgregarDato((uint8_t)0x01);
             puertoSerie->CerrarCarga();
             puertoSerie->EnviarBufTx();
-        } else {
-            qDebug() << "Error: No se pudo abrir el puerto.";
         }
     }
 }
+
+void MainWindow::iniciarMotorDesdeC() {}
+void MainWindow::configurarHeartbeat(bool, int) {}
+void MainWindow::onTimer() {}

@@ -1,141 +1,149 @@
 /**
  * @file main.c
- * @brief Control reactivo con filtrado anti-rebote en IR y Media Móvil en Ultrasonido.
+ * @brief Orquestador principal (Super Loop) de la cinta clasificadora.
  * @author LeoM320
- * @date 18 de Mayo de 2026
+ * @date 19 de Mayo de 2026
+ *
+ * @details
+ * Punto de entrada del firmware del ATmega328P. 
+ * Implementa una arquitectura Master-Slave asíncrona. El microcontrolador 
+ * evalúa continuamente el hardware (sensores y comunicaciones) mediante 
+ * Máquinas de Estados Finitos (FSM) y delega la ejecución de órdenes 
+ * al despachador de comandos (`comandos.c`), sin detener jamás la CPU.
  */
 
-#include <stdint.h>
-#include <stdbool.h>
-
-/* Configuración y HAL */
+// ==========================================
+// 1. CONFIGURACIÓN FÍSICA Y BSP
+// ==========================================
 #include "config/hardware.h"
 #include "config/gpio.h"
+
+// ==========================================
+// 2. CAPA DE ABSTRACCIÓN DE HARDWARE (HAL)
+// ==========================================
+#include "hal/include/hal_gpio.h"  // <--- SOLUCIÓN: Agregado para usar HAL_GPIO_READ
 #include "hal/include/hal_timer.h"
-#include "hal/include/hal_gpio.h"
+#include "hal/include/hal_uart.h"
+#include "hal/include/hal_adc.h"
 #include "hal/include/hal_servo.h"
 
-/* Utilidades y Drivers */
-#include "utils/debounce.h"
-#include "utils/temporizador.h"
+// ==========================================
+// 3. MIDDLEWARE Y DRIVERS
+// ==========================================
 #include "drivers/hcsr04.h"
+#include "utils/heartbeat.h"
+#include "utils/temporizador.h"
+#include "utils/debounce.h"
+#include "utils/uner_protocol.h"
 
-#define IR_DEBOUNCE_TIME_MS 50   /**< Filtro de 50ms para eliminar jitter del LM393 */
-#define SENSOR_US_POLL_RATE 150  /**< Frecuencia de disparo del HC-SR04 (150ms) */
-#define US_FILTER_SAMPLES 4      /**< Cantidad de muestras para el filtro de media móvil */
+// ==========================================
+// 4. LÓGICA DE APLICACIÓN
+// ==========================================
+#include "app/comandos.h"
 
-int main(void) {
-    // ==========================================================
-    // 1. INICIALIZACIÓN DE HARDWARE Y PERIFÉRICOS
-    // ==========================================================
-    HAL_Timer0_Init();      
-    GPIO_Init();            
-    HAL_Servo_Init();       
-    HCSR04_Init();          
+/** @brief Instancia global del motor de protocolo UNER para telemetría. */
+UnerProtocol_t comms;
+
+/** @brief Array de filtros anti-rebote para los 4 sensores infrarrojos TCRT5000. */
+Debouncer_t ir_debouncers[4];
+
+/** @brief Temporizador para disparar el sensor ultrasónico de forma segura. */
+Temporizador timer_ultrasonico;
+
+/**
+ * @brief Rutina principal de inicialización y bucle infinito.
+ * 
+ * @return int Retorno de compatibilidad estándar (nunca se alcanza).
+ */
+int main(void)
+{
+    // ==========================================
+    // FASE 1: SECCIÓN CRÍTICA DE INICIALIZACIÓN
+    // ==========================================
+    // Se apagan las interrupciones para evitar que un periférico a medio 
+    // configurar dispare una ISR y corrompa la memoria o el flujo del programa.
+    HAL_DISABLE_INTERRUPTS();
+
+    // 1.1 Configuración de pines (Safe-State por defecto)
+    GPIO_Init();
+
+    // 1.2 Inicialización de Periféricos del Silicio (HAL)
+    HAL_Timer0_Init();             // Reloj base (SysTick de 1ms y alta resolución)
+    HAL_UART_Init(115200);         // Bus serie para Qt (Doble velocidad habilitada)
+    HAL_ADC_Init();                // Conversor A/D preparado a 125 KHz
+    HAL_Servo_Init();              // PWM Multiplexado en Timer1 para los SG90
+
+    // 1.3 Inicialización de Controladores de Software
+    HCSR04_Init();
     
+    // Iniciar el reloj de disparos del ultrasónico a 60ms (Recomendación del datasheet)
+    Temp_IniciarMS(&timer_ultrasonico, 60);
+    
+    // Filtros anti-rebote para los IR: 15ms de estabilidad exigida, reposo en LOW (0)
+    Debounce_Init(&ir_debouncers[0], 15, false);
+    Debounce_Init(&ir_debouncers[1], 15, false);
+    Debounce_Init(&ir_debouncers[2], 15, false);
+    Debounce_Init(&ir_debouncers[3], 15, false);
+
+    // Heartbeat: Doble destello corto (0b10100000 = 0xA0) cada 100ms por bit
+    Heartbeat_Init(100, 0xA0); 
+    
+    // Inicializar la FSM del protocolo serial
+    Uner_Init(&comms);
+
+    // ==========================================
+    // FASE 2: ARRANQUE DEL SISTEMA
+    // ==========================================
+    // Todos los registros están listos. Abrimos la compuerta de eventos de hardware.
     HAL_ENABLE_INTERRUPTS();
 
-    // ==========================================================
-    // 2. CONFIGURACIÓN INICIAL DE ACTUADORES
-    // ==========================================================
-    HAL_Servo_Enable(SERVO_1);
-    HAL_Servo_Enable(SERVO_2);
-    
-    HAL_Servo_SetAngle(SERVO_1, 90);
-    HAL_Servo_SetAngle(SERVO_2, 90);
-    
-    HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
-    bool cinta_encendida = false;
-    
-    // ==========================================================
-    // 3. INICIALIZACIÓN DE VARIABLES Y FILTROS
-    // ==========================================================
-    Debouncer_t filtro_ir1;
-    Debouncer_t filtro_ir2;
-    Debounce_Init(&filtro_ir1, IR_DEBOUNCE_TIME_MS, false);
-    Debounce_Init(&filtro_ir2, IR_DEBOUNCE_TIME_MS, false);
+    // ==========================================
+    // FASE 3: SUPER LOOP NO BLOQUEANTE
+    // ==========================================
+    while (1)
+    {
+        // 1. Capturar la marca de tiempo base para las FSMs
+        uint32_t current_ms = HAL_GetMillis();
 
-    bool estado_anterior_ir1 = false; 
-    bool estado_anterior_ir2 = false;
-    
-    Temporizador timer_ultrasonico;
-    Temp_IniciarMS(&timer_ultrasonico, SENSOR_US_POLL_RATE);
-
-    // Buffer circular para el filtro de Media Móvil del HC-SR04
-    uint16_t us_buffer[US_FILTER_SAMPLES];
-    uint8_t us_index = 0;
-    
-    // Pre-cargar el buffer con un valor fuera del rango de activación (ej. 100 cm)
-    // para evitar que la cinta arranque sola por los ceros iniciales en memoria.
-    for (uint8_t i = 0; i < US_FILTER_SAMPLES; i++) {
-        us_buffer[i] = 100;
-    }
-
-    // ==========================================================
-    // 4. BUCLE PRINCIPAL (SUPER LOOP)
-    // ==========================================================
-    while (1) {
-        
+        // ------------------------------------------
+        // TAREAS CRÍTICAS DE TIEMPO REAL
+        // ------------------------------------------
+        Heartbeat_Task();
         HCSR04_Task();
-        
-        /* ----------------------------------------------------------
-         * ESTACIÓN 1 (IR1 -> SERVO_1)
-         * ---------------------------------------------------------- */
-        bool crudo_ir1 = (HAL_GPIO_READ(IR1_PIN_REG, IR1_PIN) == 0);
-        bool detectado_ir1 = Debounce_Update(&filtro_ir1, crudo_ir1);
-        
-        if (detectado_ir1 != estado_anterior_ir1) {
-            HAL_Servo_SetAngle(SERVO_1, detectado_ir1 ? 0 : 90);
-            estado_anterior_ir1 = detectado_ir1;
-        }
-        
-        /* ----------------------------------------------------------
-         * ESTACIÓN 2 (IR2 -> SERVO_2)
-         * ---------------------------------------------------------- */
-        bool crudo_ir2 = (HAL_GPIO_READ(IR2_PIN_REG, IR2_PIN) == 0);
-        bool detectado_ir2 = Debounce_Update(&filtro_ir2, crudo_ir2);
-        
-        if (detectado_ir2 != estado_anterior_ir2) {
-            HAL_Servo_SetAngle(SERVO_2, detectado_ir2 ? 0 : 90);
-            estado_anterior_ir2 = detectado_ir2;
-        }
-        
-        /* ----------------------------------------------------------
-         * ESTACIÓN DE ENTRADA (ULTRASONIDO -> CINTA)
-         * ---------------------------------------------------------- */
-         
+
+        // Disparar el sensor de forma autónoma y asíncrona
         if (Temp_Expiro(&timer_ultrasonico)) {
             HCSR04_Trigger();
             Temp_Reiniciar(&timer_ultrasonico);
         }
+
+        // Actualización de los filtros de los sensores ópticos
+        Debounce_Update(&ir_debouncers[0], HAL_GPIO_READ(IR0_PIN_REG, IR0_PIN) != 0);
+        Debounce_Update(&ir_debouncers[1], HAL_GPIO_READ(IR1_PIN_REG, IR1_PIN) != 0);
+        Debounce_Update(&ir_debouncers[2], HAL_GPIO_READ(IR2_PIN_REG, IR2_PIN) != 0);
+        Debounce_Update(&ir_debouncers[3], HAL_GPIO_READ(IR3_PIN_REG, IR3_PIN) != 0);
+
+        // ------------------------------------------
+        // COMUNICACIONES Y DESPACHO DE ÓRDENES
+        // ------------------------------------------
+        // Extraer datos de la UART (Ring Buffer) e inyectarlos a la FSM
+        Uner_Recibir(&comms, current_ms);
         
-        if (HCSR04_IsDataReady()) {
-            uint16_t nueva_distancia = HCSR04_GetDistance();
-            
-            // 1. Ingresar el nuevo dato al buffer circular
-            us_buffer[us_index] = nueva_distancia;
-            us_index = (us_index + 1) % US_FILTER_SAMPLES;
-            
-            // 2. Calcular el promedio actual
-            uint32_t suma = 0;
-            for (uint8_t i = 0; i < US_FILTER_SAMPLES; i++) {
-                suma += us_buffer[i];
-            }
-            uint16_t distancia_filtrada = suma / US_FILTER_SAMPLES;
-            
-            // 3. Evaluar la condición con la señal ya suavizada
-            bool en_rango = (distancia_filtrada >= 5 && distancia_filtrada <= 10);
-            
-            if (en_rango && !cinta_encendida) {
-                HAL_GPIO_WRITE_HIGH(CINTA_PORT, CINTA_PIN);
-                cinta_encendida = true;
-            } 
-            else if (!en_rango && cinta_encendida) {
-                HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
-                cinta_encendida = false;
-            }
+        // Si hay un paquete validado, procesarlo y responder al Host
+        Comandos_Procesar(&comms);
+
+        // ------------------------------------------
+        // LÓGICA DE CLASIFICACIÓN AUTÓNOMA (Futuro)
+        // ------------------------------------------
+        /*
+        // Ejemplo de uso para cuando la cinta deba tomar decisiones por sí misma:
+        if (ir_debouncers[0].estado_validado) {
+            // Pieza detectada en la estación 1, frenar cinta y mover servo.
+            HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
+            HAL_Servo_SetAngle(SERVO_1, 90);
         }
+        */
     }
-    
-    return 0; 
+
+    return 0;
 }
