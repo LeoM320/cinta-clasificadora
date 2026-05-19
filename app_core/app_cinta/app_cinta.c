@@ -1,25 +1,22 @@
 // ==========================================
-// 1. INCLUSIONES (El orden es fundamental)
+// 1. INCLUDES (Deben ir primero)
 // ==========================================
-#include "app_cinta.h"                // DEBE ir primero, acá viven sCaja y sColaCajas
+#include "app_cinta.h"                // Trae los typedefs (sCaja, etc.)
+#include "../hal/include/hal_uart.h"  // Para la consola
+#include "../drivers/hcsr04.h"        // Para el ultrasónico
+#include "../utils/debounce.h"        // Para anti-rebote
 
-#include "../hal/include/hal_uart.h"  // Para RX/TX de la UART
-#include "../drivers/hcsr04.h"        // Para HCSR04_Init, HCSR04_Task, etc.
-#include "../utils/debounce.h"        // Para Debouncer_t y Debounce_Update
-
 // ==========================================
-// 2. PROTOTIPOS DE FUNCIONES PRIVADAS
+// 2. PROTOTIPOS PRIVADOS (Deben ir después del .h)
 // ==========================================
-// Como ya incluimos app_cinta.h arriba, el compilador ya sabe qué es "sCaja"
 static uint8_t Calcular_Destino(uint8_t altura);
-static uint8_t Calcular_Altura(uint32_t tiempo_vuelo_us);
-bool Cola_Vacia(sColaCajas* cola); // Sin 'static', coincidiendo con tu definición de abajo
+bool Cola_Vacia(sColaCajas* cola); 
 static void Enqueue_Caja(sColaCajas* cola, uint8_t altura_medida);
 static sCaja* Peek_Caja(sColaCajas* cola);
 static sCaja Dequeue_Caja(sColaCajas* cola);
 
 // ==========================================
-// 3. VARIABLES ESTÁTICAS / GLOBALES
+// 3. VARIABLES GLOBALES / ESTÁTICAS
 // ==========================================
 static eCintaState estado_medicion = CINTA_IDLE;
 
@@ -35,8 +32,6 @@ static uint32_t t_inicio_caja = 0;
 
 // Configuración de las salidas (Por defecto)
 static uint8_t config_alturas_salida[3] = {ALTURA_CAJA_CHICA, ALTURA_CAJA_MEDIANA, ALTURA_CAJA_GRANDE};
-
-static uint8_t Calcular_Altura(uint32_t tiempo_vuelo_us);
 
 static _sEstadoServo control_servos[3];
 static _sSensores control_sensores[4] = {
@@ -346,21 +341,4 @@ void App_Cinta_ConfigurarSalida(uint8_t salida_idx, uint8_t altura_asignada) {
     if (salida_idx < 3) {
         config_alturas_salida[salida_idx] = altura_asignada;
     }
-}
-
-// Definí a qué altura física está el sensor respecto a la cinta (ej. 20 cm)
-#define ALTURA_FISICA_SENSOR_CM 20 
-
-static uint8_t Calcular_Altura(uint32_t tiempo_vuelo_us) {
-    // 1. Convertir tiempo a distancia (dividiendo por 58)
-    uint16_t distancia_vacia = tiempo_vuelo_us / 58; 
-    
-    // 2. Seguridad: Si la distancia medida es mayor a la altura del sensor, 
-    // significa que no hay caja o hubo un error de lectura.
-    if (distancia_vacia >= ALTURA_FISICA_SENSOR_CM) {
-        return 0; 
-    }
-    
-    // 3. La altura de la caja es la diferencia
-    return (uint8_t)(ALTURA_FISICA_SENSOR_CM - distancia_vacia);
 }
