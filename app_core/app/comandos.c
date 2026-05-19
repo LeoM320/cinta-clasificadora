@@ -60,7 +60,7 @@ void Comandos_Procesar(UnerProtocol_t *u) {
                     uint8_t angulo = Uner_Obtener8(u, 2);
                     
                     HAL_Servo_Enable(servo_id);
-                    HAL_Servo_SetAngle(servo_id, angulo, 250); // Transición de 250 ms
+                    HAL_Servo_SetAngle(servo_id, angulo);
                     
                     Uner_AbrirCarga(u, 2);
                     Uner_Agregar8(u, ACK_SET_SERVO);
