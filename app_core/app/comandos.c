@@ -77,19 +77,15 @@ void Comandos_Procesar(UnerProtocol_t *u) {
 
             case CMD_SET_BELT:
             {
-                // Comando para la Cinta: 1 (Arrancar), 0 (Detener)
                 if (u->rx.length >= 2) {
                     uint8_t estado = Uner_Obtener8(u, 1);
                     
-                    if (estado > 0) {
-                        HAL_GPIO_WRITE_HIGH(CINTA_PORT, CINTA_PIN);
-                    } else {
-                        HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
-                    }
+                    // ¡LLAMAMOS A LA API DE LA CINTA!
+                    App_Cinta_SetEstado(estado > 0);
 
                     Uner_AbrirCarga(u, 2);
                     Uner_Agregar8(u, ACK_SET_BELT);
-                    Uner_Agregar8(u, estado > 0 ? 1 : 0); // Confirmamos estado aplicado
+                    Uner_Agregar8(u, estado > 0 ? 1 : 0);
                     Uner_CerrarCarga(u);
                 }
                 break;
