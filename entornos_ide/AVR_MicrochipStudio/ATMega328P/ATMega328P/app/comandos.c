@@ -13,7 +13,6 @@
 #include "../hal/include/hal_timer.h"
 #include "../hal/include/hal_servo.h"
 #include "../drivers/hcsr04.h"
-#include "../app_cinta/app_cinta_final.h"
 
 static const uint8_t FIRMWARE_VERSION[3] = {1, 0, 0};
 
@@ -82,7 +81,7 @@ void Comandos_Procesar(UnerProtocol_t *u) {
                     uint8_t estado = Uner_Obtener8(u, 1);
                     
                     // ¡LLAMAMOS A LA API DE LA CINTA!
-                    App_CintaFinal_SetEstado(estado > 0);
+                    App_Cinta_SetEstado(estado > 0);
 
                     Uner_AbrirCarga(u, 2);
                     Uner_Agregar8(u, ACK_SET_BELT);
@@ -97,7 +96,9 @@ void Comandos_Procesar(UnerProtocol_t *u) {
             // ------------------------------------------
             case CMD_GET_DISTANCE:
             {
-                uint16_t distancia = App_CintaFinal_GetDistancia();
+                // Retorna la última distancia validada por la FSM no bloqueante
+                uint16_t distancia = HCSR04_GetDistance();
+                
                 Uner_AbrirCarga(u, 3);
                 Uner_Agregar8(u, ACK_GET_DISTANCE);
                 Uner_Agregar16(u, distancia);
@@ -107,9 +108,16 @@ void Comandos_Procesar(UnerProtocol_t *u) {
 
             case CMD_GET_IR_STATES:
             {
-                // Le pedimos a la cinta los estados filtrados
-                uint8_t ir_pack = App_CintaFinal_GetIRPack(); 
+                // Bit-Packing: Condensar 4 lecturas de pines en 1 solo byte
+                // Formato: 0000|IR3|IR2|IR1|IR0
+                uint8_t ir_pack = 0;
                 
+                // Si el sensor lee ALTO (asumiendo lógica directa), levantamos el bit correspondiente
+                if (HAL_GPIO_READ(IR0_PIN_REG, IR0_PIN)) ir_pack |= (1 << 0);
+                if (HAL_GPIO_READ(IR1_PIN_REG, IR1_PIN)) ir_pack |= (1 << 1);
+                if (HAL_GPIO_READ(IR2_PIN_REG, IR2_PIN)) ir_pack |= (1 << 2);
+                if (HAL_GPIO_READ(IR3_PIN_REG, IR3_PIN)) ir_pack |= (1 << 3);
+
                 Uner_AbrirCarga(u, 2);
                 Uner_Agregar8(u, ACK_GET_IR_STATES);
                 Uner_Agregar8(u, ir_pack);
@@ -133,28 +141,4 @@ void Comandos_Procesar(UnerProtocol_t *u) {
         // Ejecutar transmisión física al Host
         Uner_Transmitir(u);
     }
-}
-
-#include <string.h> // Necesario para strlen
-
-extern UnerProtocol_t protocolo_uart;
-
-void Comandos_EnviarLog(const char* mensaje) {
-    uint8_t len = strlen(mensaje);
-    if (len > 60) len = 60; // Protección
-
-    // Abrimos carga: len (texto) + 1 (Comando) + 1 (Terminador nulo)
-    Uner_AbrirCarga(&protocolo_uart, len + 2); 
-    
-    Uner_Agregar8(&protocolo_uart, CMD_SEND_LOG); 
-    
-    for(uint8_t i = 0; i < len; i++) {
-        Uner_Agregar8(&protocolo_uart, (uint8_t)mensaje[i]);
-    }
-    
-    // Agregamos el terminador de string de C
-    Uner_Agregar8(&protocolo_uart, '\0'); 
-    
-    Uner_CerrarCarga(&protocolo_uart);
-    Uner_Transmitir(&protocolo_uart);
 }

@@ -33,7 +33,7 @@
 #define CMD_GET_DISTANCE    0x04    /**< Lee el sensor ultrasónico. Devuelve distancia en cm (16b) */
 #define CMD_GET_IR_STATES   0x05    /**< Lee los 4 sensores IR. Devuelve 1 byte empaquetado (Bit-Packing) */
 #define CMD_SET_BELT        0x06    /**< Controla la cinta. Payload: [Estado(8b): 0=Apagado, 1=Encendido] */
-#define CMD_SEND_LOG        0x09    /**< Envía un mensaje de log al Host */
+
 // --- Respuestas del Dispositivo (Slave/ACK) ---
 #define ACK_ALIVE           0x81    
 #define ACK_GET_VERSION     0x82    
@@ -49,7 +49,5 @@
 /** @} */
 
 void Comandos_Procesar(UnerProtocol_t *u);
-
-void Comandos_EnviarLog(const char* mensaje);
 
 #endif /* APP_COMANDOS_H_ */

@@ -1,7 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QQmlContext>
-#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -13,13 +12,16 @@ MainWindow::MainWindow(QWidget *parent)
     connect(puertoSerie->Direccion(), &QSerialPort::readyRead, this, &MainWindow::onRx);
     puertoSerie->ListarPuertos(ui->comboBoxPuertos);
 
+    // Configuración del Timer de Polling (Ejecutará onTimerPolling cada vez que venza)
+    timerPolling = new QTimer(this);
+    connect(timerPolling, &QTimer::timeout, this, &MainWindow::onTimerPolling);
+
     ui->visorQml->setResizeMode(QQuickWidget::SizeRootObjectToView);
     ui->visorQml->rootContext()->setContextProperty("backend", this);
     ui->visorQml->setSource(QUrl("qrc:/interfaz.qml"));
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     delete ui;
 }
 
@@ -61,95 +63,107 @@ void MainWindow::setServo(int servoId, int angulo)
     puertoSerie->EnviarBufTx();
 }
 
-void MainWindow::requestDistance()
-{
+void MainWindow::requestDistance() {
     if (!puertoSerie->Comprobar()) return;
     puertoSerie->AbrirCarga(1);
-    puertoSerie->AgregarDato((uint8_t)0x04); // CMD_GET_DISTANCE
+    puertoSerie->AgregarDato((uint8_t)0x04);
     puertoSerie->CerrarCarga();
     puertoSerie->EnviarBufTx();
 }
 
-void MainWindow::requestIrStates()
-{
+void MainWindow::requestIrStates() {
     if (!puertoSerie->Comprobar()) return;
     puertoSerie->AbrirCarga(1);
-    puertoSerie->AgregarDato((uint8_t)0x05); // CMD_GET_IR_STATES
+    puertoSerie->AgregarDato((uint8_t)0x05);
     puertoSerie->CerrarCarga();
     puertoSerie->EnviarBufTx();
 }
 
-// ==========================================
-// RECEPCIÓN DE DATOS (C++ -> QML)
-// ==========================================
+// Bucle Continuo de Peticiones
+void MainWindow::onTimerPolling() {
+    if (!puertoSerie->Comprobar()) return;
 
-void MainWindow::onRx()
-{
+    // Usamos una variable estática para alternar las peticiones (Ping-Pong)
+    static bool flag_alternar = false;
+
+    if (flag_alternar) {
+        requestDistance();
+    } else {
+        requestIrStates();
+    }
+
+    flag_alternar = !flag_alternar;
+}
+
+void MainWindow::onRx() {
     puertoSerie->Recibir();
-
     if (puertoSerie->Comando()) {
         uint8_t cmdId = puertoSerie->IDComando();
 
         switch (cmdId) {
-        case 0x81: // ACK_ALIVE
-        {
-            // uint32_t uptime = puertoSerie->ObtenerUint32_t(1); // Opcional
+        case 0x81:
             ui->pushButtonOpenClose->setText("CLOSE");
             ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: green; color: black; font-weight: bold; }");
-            emit connectionStatusChanged(true); // Avisar a QML que estamos listos
+            emit connectionStatusChanged(true);
+
+            // EL MICRO RESPONDIÓ. INICIAMOS LA METRALLA DE TELEMETRÍA (4 veces por segundo)
+            timerPolling->start(750);
             break;
-        }
-        case 0x84: // ACK_GET_DISTANCE
-        {
-            uint16_t dist = puertoSerie->ObtenerUint16_t(1);
-            emit distanceUpdated(dist);
+
+        case 0x84:
+            emit distanceUpdated(puertoSerie->ObtenerUint16_t(1));
             break;
-        }
-        case 0x85: // ACK_GET_IR_STATES
+
+        case 0x85:
         {
             uint8_t irPack = puertoSerie->ObtenerUint8_t(1);
-            // Desempaquetado de bits (Bit-Unpacking)
-            bool ir0 = (irPack & (1 << 0)) != 0;
-            bool ir1 = (irPack & (1 << 1)) != 0;
-            bool ir2 = (irPack & (1 << 2)) != 0;
-            bool ir3 = (irPack & (1 << 3)) != 0;
-            emit irStatesUpdated(ir0, ir1, ir2, ir3);
+            emit irStatesUpdated((irPack & 1) != 0, (irPack & 2) != 0, (irPack & 4) != 0, (irPack & 8) != 0);
             break;
         }
-        case 0x86: // ACK_SET_BELT
-        case 0x83: // ACK_SET_SERVO
-            // Confirmaciones silenciosas, se pueden omitir del log si se desea
+
+            // NUEVO CASE PARA EL LOG (0x09)
+        case 0x09:
+        {
+            QByteArray textBytes;
+            int i = 1; // Empezamos en el índice 1 (el 0 es el ID del comando)
+
+            while (true) {
+                uint8_t letra = puertoSerie->ObtenerUint8_t(i);
+
+                // Si encontramos el terminador nulo o pasamos el límite de seguridad, cortamos
+                if (letra == '\0' || i > 65) {
+                    break;
+                }
+
+                textBytes.append((char)letra);
+                i++;
+            }
+
+            QString logStr = QString::fromLatin1(textBytes);
+            emit logMessageReceived(logStr);
             break;
-        default:
-            qDebug() << "RX Desconocido o Error:" << Qt::hex << cmdId;
-            break;
+        }
+
+        case 0x86: case 0x83: break;
+        default: qDebug() << "RX Desconocido:" << Qt::hex << cmdId; break;
         }
     }
 }
 
-// ==========================================
-// BOTÓN CONEXIÓN
-// ==========================================
-
-void MainWindow::on_pushButtonOpenClose_clicked()
-{
+void MainWindow::on_pushButtonOpenClose_clicked() {
     if (puertoSerie->Comprobar()) {
-        // --- DESCONEXIÓN ---
-        emit connectionStatusChanged(false); // Detener el polling en QML
+        timerPolling->stop(); // FRENAR EL POLLING ANTES DE CERRAR
+        emit connectionStatusChanged(false);
         QTimer::singleShot(50, this, [this]() {
             puertoSerie->CerrarPuerto();
             ui->pushButtonOpenClose->setText("OPEN");
             ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: red; color: white; font-weight: bold; }");
         });
     } else {
-        // --- CONEXIÓN ---
-        if (puertoSerie->AbrirPuerto(ui->comboBoxPuertos->currentText(),
-                                     QSerialPort::Baud115200,
-                                     QIODevice::ReadWrite)) {
+        if (puertoSerie->AbrirPuerto(ui->comboBoxPuertos->currentText(), QSerialPort::Baud115200, QIODevice::ReadWrite)) {
             ui->pushButtonOpenClose->setText("WAIT...");
             ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: yellow; color: black; font-weight: bold; }");
 
-            // Enviar Petición ALIVE (0x01)
             puertoSerie->AbrirCarga(1);
             puertoSerie->AgregarDato((uint8_t)0x01);
             puertoSerie->CerrarCarga();
@@ -157,7 +171,3 @@ void MainWindow::on_pushButtonOpenClose_clicked()
         }
     }
 }
-
-void MainWindow::iniciarMotorDesdeC() {}
-void MainWindow::configurarHeartbeat(bool, int) {}
-void MainWindow::onTimer() {}

@@ -73,49 +73,65 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ToolchainSettings>
       <com.microchip.xc8>
-        <com.microchip.xc8.compiler.general.ChangeDefaultCharTypeUnsigned>True</com.microchip.xc8.compiler.general.ChangeDefaultCharTypeUnsigned>
-        <com.microchip.xc8.compiler.general.ChangeDefaultBitFieldUnsigned>True</com.microchip.xc8.compiler.general.ChangeDefaultBitFieldUnsigned>
-        <com.microchip.xc8.compiler.symbols.DefSymbols>
-          <ListValues>
-            <Value>(%24DeviceMacro)</Value>
-            <Value>DEBUG</Value>
-          </ListValues>
-        </com.microchip.xc8.compiler.symbols.DefSymbols>
-        <com.microchip.xc8.compiler.directories.IncludePaths>
-          <ListValues>
-            <Value>..\..\..\..\app_core</Value>
-          </ListValues>
-        </com.microchip.xc8.compiler.directories.IncludePaths>
-        <com.microchip.xc8.compiler.optimization.level>Optimize debugging experience (-Og)</com.microchip.xc8.compiler.optimization.level>
-        <com.microchip.xc8.compiler.optimization.PackStructureMembers>True</com.microchip.xc8.compiler.optimization.PackStructureMembers>
-        <com.microchip.xc8.compiler.optimization.AllocateBytesNeededForEnum>True</com.microchip.xc8.compiler.optimization.AllocateBytesNeededForEnum>
-        <com.microchip.xc8.compiler.optimization.DebugLevel>Default (-g2)</com.microchip.xc8.compiler.optimization.DebugLevel>
-        <com.microchip.xc8.compiler.warnings.AllWarnings>True</com.microchip.xc8.compiler.warnings.AllWarnings>
-        <com.microchip.xc8.linker.libraries.Libraries>
-          <ListValues>
-            <Value>libm</Value>
-          </ListValues>
-        </com.microchip.xc8.linker.libraries.Libraries>
-        <com.microchip.xc8.assembler.debugging.DebugLevel>Default (-Wa,-g)</com.microchip.xc8.assembler.debugging.DebugLevel>
-      </com.microchip.xc8>
+  <com.microchip.xc8.common.outputfiles.hex>True</com.microchip.xc8.common.outputfiles.hex>
+  <com.microchip.xc8.common.outputfiles.eep>True</com.microchip.xc8.common.outputfiles.eep>
+  <com.microchip.xc8.common.outputfiles.usersignatures>False</com.microchip.xc8.common.outputfiles.usersignatures>
+  <com.microchip.xc8.common.outputfiles.lss>True</com.microchip.xc8.common.outputfiles.lss>
+  <com.microchip.xc8.compiler.general.ChangeDefaultCharTypeUnsigned>True</com.microchip.xc8.compiler.general.ChangeDefaultCharTypeUnsigned>
+  <com.microchip.xc8.compiler.general.ChangeDefaultBitFieldUnsigned>True</com.microchip.xc8.compiler.general.ChangeDefaultBitFieldUnsigned>
+  <com.microchip.xc8.compiler.symbols.DefSymbols>
+    <ListValues>
+      <Value>(%24DeviceMacro)</Value>
+      <Value>DEBUG</Value>
+    </ListValues>
+  </com.microchip.xc8.compiler.symbols.DefSymbols>
+  <com.microchip.xc8.compiler.directories.IncludePaths>
+    <ListValues>
+      <Value>../../../../../app_core</Value>
+    </ListValues>
+  </com.microchip.xc8.compiler.directories.IncludePaths>
+  <com.microchip.xc8.compiler.optimization.level>Optimize debugging experience (-Og)</com.microchip.xc8.compiler.optimization.level>
+  <com.microchip.xc8.compiler.optimization.PackStructureMembers>True</com.microchip.xc8.compiler.optimization.PackStructureMembers>
+  <com.microchip.xc8.compiler.optimization.AllocateBytesNeededForEnum>True</com.microchip.xc8.compiler.optimization.AllocateBytesNeededForEnum>
+  <com.microchip.xc8.compiler.optimization.DebugLevel>Default (-g2)</com.microchip.xc8.compiler.optimization.DebugLevel>
+  <com.microchip.xc8.compiler.warnings.AllWarnings>True</com.microchip.xc8.compiler.warnings.AllWarnings>
+  <com.microchip.xc8.linker.libraries.Libraries>
+    <ListValues>
+      <Value>libm</Value>
+    </ListValues>
+  </com.microchip.xc8.linker.libraries.Libraries>
+  <com.microchip.xc8.assembler.debugging.DebugLevel>Default (-Wa,-g)</com.microchip.xc8.assembler.debugging.DebugLevel>
+</com.microchip.xc8>
     </ToolchainSettings>
   </PropertyGroup>
-  
   <ItemGroup>
+    <Folder Include="app\" />
+    <Folder Include="app_cinta\" />
     <Folder Include="config\" />
+    <Folder Include="drivers\" />
     <Folder Include="hal\" />
     <Folder Include="hal\include\" />
     <Folder Include="hal\src\" />
     <Folder Include="hal\src\AVR_ATMega328P\" />
     <Folder Include="utils\" />
   </ItemGroup>
-
   <ItemGroup>
-    <Compile Include="..\..\..\..\app_core\main.c">
+    <Compile Include="..\..\..\..\app_core\app\comandos.c">
       <SubType>compile</SubType>
-      <Link>main.c</Link>
+      <Link>app\comandos.c</Link>
     </Compile>
-    
+    <Compile Include="..\..\..\..\app_core\app\comandos.h">
+      <SubType>compile</SubType>
+      <Link>app\comandos.h</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\app_cinta\app_cinta_final.c">
+      <SubType>compile</SubType>
+      <Link>app_cinta\app_cinta_final.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\app_cinta\app_cinta_final.h">
+      <SubType>compile</SubType>
+      <Link>app_cinta\app_cinta_final.h</Link>
+    </Compile>
     <Compile Include="..\..\..\..\app_core\config\gpio.c">
       <SubType>compile</SubType>
       <Link>config\gpio.c</Link>
@@ -128,7 +144,14 @@
       <SubType>compile</SubType>
       <Link>config\hardware.h</Link>
     </Compile>
-
+    <Compile Include="..\..\..\..\app_core\drivers\hcsr04.c">
+      <SubType>compile</SubType>
+      <Link>drivers\hcsr04.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\drivers\hcsr04.h">
+      <SubType>compile</SubType>
+      <Link>drivers\hcsr04.h</Link>
+    </Compile>
     <Compile Include="..\..\..\..\app_core\hal\include\hal_adc.h">
       <SubType>compile</SubType>
       <Link>hal\include\hal_adc.h</Link>
@@ -149,7 +172,6 @@
       <SubType>compile</SubType>
       <Link>hal\include\hal_uart.h</Link>
     </Compile>
-
     <Compile Include="..\..\..\..\app_core\hal\src\AVR_ATMega328P\hal_adc.c">
       <SubType>compile</SubType>
       <Link>hal\src\AVR_ATMega328P\hal_adc.c</Link>
@@ -166,7 +188,26 @@
       <SubType>compile</SubType>
       <Link>hal\src\AVR_ATMega328P\hal_uart.c</Link>
     </Compile>
-
+    <Compile Include="..\..\..\..\app_core\main.c">
+      <SubType>compile</SubType>
+      <Link>main.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\debounce.c">
+      <SubType>compile</SubType>
+      <Link>utils\debounce.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\debounce.h">
+      <SubType>compile</SubType>
+      <Link>utils\debounce.h</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\heartbeat.c">
+      <SubType>compile</SubType>
+      <Link>utils\heartbeat.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\heartbeat.h">
+      <SubType>compile</SubType>
+      <Link>utils\heartbeat.h</Link>
+    </Compile>
     <Compile Include="..\..\..\..\app_core\utils\temporizador.c">
       <SubType>compile</SubType>
       <Link>utils\temporizador.c</Link>
