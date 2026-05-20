@@ -1,4 +1,4 @@
-#include "app_cinta.h"
+#include "app_cinta/app_cinta.h"
 
 // Prototipos de funciones privadas
 static uint8_t Calcular_Destino(uint8_t altura);
@@ -41,6 +41,8 @@ static bool flag_calibrando = false;
 // Arreglo de 3 colas de tránsito: [0] S0->S1 | [1] S1->S2 | [2] S2->S3
 static _sColaCajas colas_zonas[3];
 
+static ErrorCallback_t cb_error = NULL;
+
 void App_Cinta_Init(void) {
     estado_medicion = CINTA_IDLE;
     HCSR04_Init();     // Inicialización de la FSM del driver del ultrasónico
@@ -53,11 +55,9 @@ void App_Cinta_Init(void) {
 }
 
 void App_Cinta_Task(void) {
-    // Despachar el driver ultrasónico asíncrono
-    HCSR04_Task();
-
-    // Adquisición de S0 filtrada por el debouncer
-    bool raw_s0 = HAL_GPIO_READ(PIND, 2);
+    // 1. Leemos el hardware a través del BSP
+    bool raw_s0 = GPIO_LeerSensor(0);
+    // 2. Lo pasamos por el filtro
     control_sensores[0].actual_state = Debounce_Update(&filtro_sensores[0], raw_s0);
 
     // ---------------------------------------------------------
@@ -87,8 +87,8 @@ void App_Cinta_Task(void) {
     // ---------------------------------------------------------
     switch (estado_medicion) {
         case CINTA_OFF:
-            HAL_GPIO_WRITE_LOW(PORTC, 0); // Corte de energía general del motor
-            timeout_hb = 1500;            // Heartbeat en modo reposo (lento)
+            GPIO_SetCinta(false);
+            timeout_hb = 1500; 
             break;
 
         case CINTA_IDLE:
@@ -135,14 +135,8 @@ void App_Cinta_Task(void) {
     // SUBSISTEMA 2: Polling de Zonas de Tránsito (Checkpoints)
     // ---------------------------------------------------------
     for (uint8_t i = 0; i < 3; i++) {
-        bool lectura_cruda = true;
-
-        // Mapeo dinámico del hardware
-        switch(i) {
-            case 0: lectura_cruda = LEER_SENSOR_S1(); break;
-            case 1: lectura_cruda = LEER_SENSOR_S2(); break;
-            case 2: lectura_cruda = LEER_SENSOR_S3(); break;
-        }
+        // Pedimos el estado físico al BSP dinámicamente (S1=1, S2=2, S3=3)
+        bool lectura_cruda = GPIO_LeerSensor(i + 1); 
 
         // Filtrado por debouncer indexado (Sensores S1, S2, S3 ocupan índices 1, 2, 3)
         control_sensores[i+1].actual_state = Debounce_Update(&filtro_sensores[i+1], lectura_cruda);
@@ -160,9 +154,11 @@ void App_Cinta_Task(void) {
             
             if (det_fisica || det_virtual) {
 
-                // Reporte preventivo de mantenimiento si falló el haz físico y actuó el ETA
+                // Si falló el físico y actuó el virtual, disparamos el evento ciegamente
                 if (det_virtual && !det_fisica) {
-                    HAL_UART_TxWrite(0xE1);
+                    if (cb_error != NULL) {
+                        cb_error(0xE1); // La cinta avisa
+                    }
                 }
 
                 // Si la caja pertenece a esta tolva de eyección
@@ -217,35 +213,11 @@ void App_Cinta_Task(void) {
     }
 
     // ---------------------------------------------------------
-    // SUBSISTEMA 4: Polling asíncrono de la UART
-    // ---------------------------------------------------------
-    if (HAL_UART_RxDataAvailable()) {
-        uint8_t dato = HAL_UART_RxRead();
-        switch (dato) {
-            case 0x50: // Encender Planta
-                estado_medicion = CINTA_IDLE; 
-                HAL_GPIO_WRITE_HIGH(PORTC, 0); 
-                break;
-            case 0x51: // Parada de Emergencia / Apagar
-                estado_medicion = CINTA_OFF; 
-                HAL_GPIO_WRITE_LOW(PORTC, 0);  
-                break;
-            case 0x52: // Calibración dinámica del Piso a demanda
-                HAL_GPIO_WRITE_HIGH(PORTC, 0); 
-                flag_calibrando = true;
-                HCSR04_Trigger(); 
-                t_inicio_caja = HAL_GetMillis(); 
-                estado_medicion = CINTA_ESPERANDO_MEDICION;
-                break;
-        }
-    }
-
-    // ---------------------------------------------------------
     // SUBSISTEMA 5: Secuencia de Heartbeat Dinámica
     // ---------------------------------------------------------
     if ((HAL_GetMillis() - tick_hb) >= timeout_hb) {
         tick_hb = HAL_GetMillis(); 
-        HAL_GPIO_TOGGLE(PORTB, 5); // Toggles en pin LED de Arduino
+        GPIO_ToggleHeartbeat();
     }
 
     // Sincronizar historial de S0
@@ -303,4 +275,19 @@ void App_Cinta_ConfigurarSalida(uint8_t salida_idx, uint8_t altura_asignada) {
     if (salida_idx < 3) {
         config_alturas_salida[salida_idx] = altura_asignada;
     }
+}
+
+// Interfaz pública para que el despachador de comandos controle la cinta
+void App_Cinta_SetEstado(bool encender) {
+    if (encender) {
+        estado_medicion = CINTA_IDLE; 
+    } else {
+        estado_medicion = CINTA_OFF; 
+    }
+
+    GPIO_SetCinta(encender); 
+}
+
+void App_Cinta_SetErrorCallback(ErrorCallback_t callback) {
+    cb_error = callback;
 }

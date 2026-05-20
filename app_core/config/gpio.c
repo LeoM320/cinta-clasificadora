@@ -87,3 +87,28 @@ void GPIO_Init(void)
     HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
     HAL_GPIO_SET_OUTPUT(CINTA_DDR, CINTA_PIN);
 }
+
+// Al final de tu gpio.c...
+
+void GPIO_SetCinta(bool estado) {
+    if (estado) {
+        HAL_GPIO_WRITE_HIGH(CINTA_PORT, CINTA_PIN);
+    } else {
+        HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
+    }
+}
+
+bool GPIO_LeerSensor(uint8_t sensor_id) {
+    // Si el hardware lee un valor mayor a 0, retorna true (ALTO)
+    switch(sensor_id) {
+        case 0: return HAL_GPIO_READ(IR0_PIN_REG, IR0_PIN) > 0;
+        case 1: return HAL_GPIO_READ(IR1_PIN_REG, IR1_PIN) > 0;
+        case 2: return HAL_GPIO_READ(IR2_PIN_REG, IR2_PIN) > 0;
+        case 3: return HAL_GPIO_READ(IR3_PIN_REG, IR3_PIN) > 0;
+        default: return true; // Fail-Safe (asumiendo Pull-Up para sensores inexistentes)
+    }
+}
+
+void GPIO_ToggleHeartbeat(void) {
+    HAL_GPIO_TOGGLE(STATUS_LED_PORT, STATUS_LED_PIN);
+}

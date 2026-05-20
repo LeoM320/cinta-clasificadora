@@ -1,16 +1,13 @@
 #ifndef APP_CINTA_H_
 #define APP_CINTA_H_
 
-#include "hal_gpio.h"
-#include "hal_timer.h"
-#include "hal_servo.h"
-#include "hcsr04.h"
-#include "debounce.h"
+#include "hal/include/hal_timer.h"
+#include "hal/include/hal_servo.h"
+#include "drivers/hcsr04.h"
+#include "utils/debounce.h"
+#include "config/gpio.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <avr/common.h>
 #include <stddef.h>
 
 // Definición de umbrales por defecto para clasificación (en centímetros)
@@ -25,11 +22,6 @@
 
 // Capacidad del Ring Buffer para cajas en tránsito
 #define MAX_CAJAS_EN_CINTA 20
-
-// Macros de lectura directa de hardware para checkpoints
-#define LEER_SENSOR_S1() (HAL_GPIO_READ(PIND, 3))
-#define LEER_SENSOR_S2() (HAL_GPIO_READ(PIND, 4))
-#define LEER_SENSOR_S3() (HAL_GPIO_READ(PIND, 5))
 
 // Enumeración limpia de los estados de la máquina de ingreso
 typedef enum {
@@ -67,10 +59,15 @@ typedef struct {
     uint8_t count;
 } _sColaCajas;
 
+typedef void (*ErrorCallback_t)(uint8_t codigo_error);
+
 // API Pública
 void App_Cinta_Init(void);
 void App_Cinta_Task(void);
 // Función para recibir la configuración dinámica desde el protocolo (UART/Qt)
 void App_Cinta_ConfigurarSalida(uint8_t salida_idx, uint8_t altura_asignada);
+void App_Cinta_SetEstado(bool encender);
+
+void App_Cinta_SetErrorCallback(ErrorCallback_t callback);
 
 #endif /* APP_CINTA_H_ */

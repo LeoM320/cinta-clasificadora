@@ -11,6 +11,9 @@
  * abstrayendo la complejidad de los registros DDRx y PORTx.
  */
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #ifndef CONFIG_GPIO_H_
 #define CONFIG_GPIO_H_
 
@@ -27,5 +30,10 @@
  *          y antes de inicializar periféricos complejos como UART o Timers.
  */
 void GPIO_Init(void);
+
+// Nuevas abstracciones de hardware
+void GPIO_SetCinta(bool estado);
+bool GPIO_LeerSensor(uint8_t sensor_id);
+void GPIO_ToggleHeartbeat(void);
 
 #endif /* CONFIG_GPIO_H_ */
