@@ -49,9 +49,9 @@ MainWindow::MainWindow(QWidget *parent)
     timerPolling = new QTimer(this);
     connect(timerPolling, &QTimer::timeout, this, &MainWindow::onTimerPolling);
 
-    ui->visorQml->setResizeMode(QQuickWidget::SizeRootObjectToView);
-    ui->visorQml->rootContext()->setContextProperty("backend", this);
-    ui->visorQml->setSource(QUrl("qrc:/interfaz.qml"));
+    //ui->visorQml->setResizeMode(QQuickWidget::SizeRootObjectToView);
+    //ui->visorQml->rootContext()->setContextProperty("backend", this);
+    //ui->visorQml->setSource(QUrl("qrc:/interfaz.qml"));
 }
 
 MainWindow::~MainWindow() {
@@ -134,13 +134,26 @@ void MainWindow::onRx(uint8_t cmdId) {
     switch (cmdId) {
 
     case 0x84: // ACK_GET_DISTANCE
-        emit distanceUpdated(puertoSerie->ObtenerUint16_t(1));
+    {
+        uint16_t dist = puertoSerie->ObtenerUint16_t(1);
+        ui->distancia_lbl->setText(QString("Distancia: %1 mm").arg(dist));
         break;
+    }
 
     case 0x85: // ACK_GET_IR_STATES
     {
         uint8_t irPack = puertoSerie->ObtenerUint8_t(1);
-        emit irStatesUpdated((irPack & 1) != 0, (irPack & 2) != 0, (irPack & 4) != 0, (irPack & 8) != 0);
+        bool ir0 = (irPack & 1);
+        bool ir1 = (irPack & 2);
+        bool ir2 = (irPack & 4);
+        bool ir3 = (irPack & 8);
+        QString status = QString("IR0:%1  IR1:%2  IR2:%3  IR3:%4")
+                             .arg(ir0 ? "ON" : "OFF")
+                             .arg(ir1 ? "ON" : "OFF")
+                             .arg(ir2 ? "ON" : "OFF")
+                             .arg(ir3 ? "ON" : "OFF");
+
+        ui->irs_lbl->setText(status);
         break;
     }
 
@@ -151,6 +164,7 @@ void MainWindow::onRx(uint8_t cmdId) {
 
         while (true) {
             uint8_t letra = puertoSerie->ObtenerUint8_t(i);
+            // Salimos si encontramos fin de cadena o llegamos al límite
             if (letra == '\0' || i > 65) {
                 break;
             }
@@ -159,8 +173,17 @@ void MainWindow::onRx(uint8_t cmdId) {
         }
 
         QString logStr = QString::fromLatin1(textBytes);
-        qDebug() << "LOG: " <<logStr;
-        emit logMessageReceived(logStr);
+
+        // 1. Mostrar en consola de desarrollo
+        qDebug() << "LOG:" << logStr;
+
+        // 2. Mostrar en tu QPlainTextEdit (asumiendo que se llama log_txt)
+        ui->plainTextEdit->appendPlainText(logStr);
+
+        // 3. Opcional: forzar scroll al final para ver siempre lo nuevo
+        ui->plainTextEdit->verticalScrollBar()->setValue(ui->plainTextEdit->verticalScrollBar()->maximum());
+
+        //emit logMessageReceived(logStr);
         break;
     }
 
@@ -173,3 +196,252 @@ void MainWindow::onRx(uint8_t cmdId) {
         break;
     }
 }
+
+void MainWindow::on_pushButton_clicked()
+{//Encender cinta
+    puertoSerie->AbrirCarga(2);
+    puertoSerie->AgregarDato((uint8_t)0x06); // CMD_SET_BELT
+    puertoSerie->AgregarDato((uint8_t)0x01); // 1 = Encender
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_pushButton_2_clicked()
+{//Apagar cinta
+    puertoSerie->AbrirCarga(2);
+    puertoSerie->AgregarDato((uint8_t)0x06); // CMD_SET_BELT
+    puertoSerie->AgregarDato((uint8_t)0x00); // 0 = Apagar
+    puertoSerie->CerrarCarga();
+}
+
+// --- SERVO 0 ---
+void MainWindow::on_sv1_0_btn_clicked()   { setServo(0, 0); }
+void MainWindow::on_sv1_90_btn_clicked()  { setServo(0, 90); }
+void MainWindow::on_sv1_180_btn_clicked() { setServo(0, 180); }
+
+// --- SERVO 1 ---
+void MainWindow::on_sv2_0_btn_clicked()   { setServo(1, 0); }
+void MainWindow::on_sv2_90_btn_clicked()  { setServo(1, 90); }
+void MainWindow::on_sv2_180_btn_clicked() { setServo(1, 180); }
+
+// --- SERVO 2 ---
+void MainWindow::on_sv3_0_btn_clicked()   { setServo(2, 0); }
+void MainWindow::on_sv3_90_btn_clicked()  { setServo(2, 90); }
+void MainWindow::on_sv3_180_btn_clicked() { setServo(2, 180); }
+
+// --- ESTACIÓN 0 ---
+void MainWindow::on_coord_est1_btn_clicked() {
+    uint32_t valor = ui->coord_est1_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetCoordenadaEstacion1);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_set_sv0max_btn_clicked() {
+    uint32_t valor = ui->set_sv0max_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetServoMax0);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_set_sv0min_btn_clicked() {
+    uint32_t valor = ui->set_sv0min_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetServoMin0);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_desp_sv0_btn_clicked() {
+    uint32_t valor = ui->desp_sv0_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsDesplegar0);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_esp_sv0_btn_clicked() {
+    uint32_t valor = ui->esp_sv0_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsEsperar0);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_ret_sv0_btn_clicked() {
+    uint32_t valor = ui->ret_sv0_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsRetraer0);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+// --- ESTACIÓN 1 ---
+void MainWindow::on_coord_est2_btn_clicked() {
+    uint32_t valor = ui->coord_est2_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetCoordenadaEstacion2);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_set_sv1max_btn_clicked() {
+    uint32_t valor = ui->set_sv1max_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetServoMax1);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_set_sv1min_btn_clicked() {
+    uint32_t valor = ui->set_sv1min_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetServoMin1);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_desp_sv1_btn_clicked() {
+    uint32_t valor = ui->desp_sv1_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsDesplegar1);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_esp_sv1_btn_clicked() {
+    uint32_t valor = ui->esp_sv1_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsEsperar1);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_ret_sv1_btn_clicked() {
+    uint32_t valor = ui->ret_sv1_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsRetraer1);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+// --- ESTACIÓN 2 ---
+void MainWindow::on_coord_est3_btn_clicked() {
+    uint32_t valor = ui->coord_est3_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetCoordenadaEstacion3);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_set_sv2max_btn_clicked() {
+    uint32_t valor = ui->set_sv2max_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetServoMax2);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_set_sv2min_btn_clicked() {
+    uint32_t valor = ui->set_sv2min_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetServoMin2);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_desp_sv2_btn_clicked() {
+    uint32_t valor = ui->desp_sv2_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsDesplegar2);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_esp_sv2_btn_clicked() {
+    uint32_t valor = ui->esp_sv2_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsEsperar2);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_ret_sv2_btn_clicked() {
+    uint32_t valor = ui->ret_sv2_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetMsRetraer2);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+// --- GLOBALES ---
+void MainWindow::on_delta_caja_btn_clicked() {
+    uint32_t valor = ui->delta_caja_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetDelta);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_dist_hcsr_btn_clicked() {
+    uint32_t valor = ui->dist_hcsr_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetDistanciaBase);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_disparosMax_btn_clicked() {
+    uint32_t valor = ui->disparosMax_spinBox->value();
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetDisparosMax);
+    puertoSerie->AgregarDato((uint32_t)valor);
+    puertoSerie->CerrarCarga();
+}
+
+void MainWindow::on_cinta_modo_clicked()
+{//Cambiar modo de la cinta y enviar el set, actualizar estilo del boton
+
+}
+
+void MainWindow::on_modo_sensor_btn_clicked()
+{
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetCiego);
+    puertoSerie->AgregarDato((uint32_t)0);
+    puertoSerie->CerrarCarga();
+}
+
+
+void MainWindow::on_modo_ciego_btn_clicked()
+{
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)eSetCiego);
+    puertoSerie->AgregarDato((uint32_t)1);
+    puertoSerie->CerrarCarga();
+}
+

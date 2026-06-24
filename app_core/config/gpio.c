@@ -88,7 +88,7 @@ void GPIO_Init(void)
     // ==========================================
     // Cinta Transportadora
     // ==========================================
-    HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN); 
+    HAL_GPIO_WRITE_HIGH(CINTA_PORT, CINTA_PIN); 
     HAL_GPIO_SET_OUTPUT(CINTA_DDR, CINTA_PIN);
 }
 
@@ -96,10 +96,10 @@ void GPIO_Init(void)
 void GPIO_SetCinta(bool estado) {
     if (estado) {
         // TRUE = Encender -> Ponemos el pin en LOW (Lógica Negativa)
-        HAL_GPIO_WRITE_HIGH(CINTA_PORT, CINTA_PIN);
+        HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
     } else {
         // FALSE = Apagar -> Ponemos el pin en HIGH
-        HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
+        HAL_GPIO_WRITE_HIGH(CINTA_PORT, CINTA_PIN);
     }
 }
 

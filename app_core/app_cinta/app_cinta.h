@@ -5,6 +5,7 @@
 #include "../config/gpio.h"
 #include "../utils/debounce.h"
 #include "../drivers/hcsr04.h"
+#include "../app/comandos.h"
 //#include "../utils/uner_protocol.h"
 //Estados de la cinta
 /*
@@ -42,4 +43,6 @@ void AppCinta_Iniciar(void);
 void AppCinta_Detener(void);
 
 void AppCinta_QuitarDeCola(uint8_t pos);
+
+void AppCinta_SetVariable(_eSetVariables idVariable, uint32_t valor);
 #endif /* APP_CINTA_H_ */

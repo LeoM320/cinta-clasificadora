@@ -55,7 +55,7 @@ int main(void)
     HAL_Servo_Init();
     
     for(uint8_t i = 0; i < 3; i++) {
-        HAL_Servo_Enable(i);       
+        HAL_Servo_Enable(i);
         HAL_Servo_SetAngle(i, 90);  
     }
 
@@ -77,15 +77,15 @@ int main(void)
     // 5. SUPER LOOP ASÍNCRONO NO BLOQUEANTE
     while (1)
     {
-        uint32_t ahora = HAL_GetMillis();
+        uint32_t msActual = HAL_GetMillis();
         
         // A. Gestión de Protocolo
-        Uner_Recibir(&protocolo_uart, ahora);
+        Uner_Recibir(&protocolo_uart, msActual);
         Comandos_Procesar(&protocolo_uart);
         Uner_Transmitir(&protocolo_uart);
         
         // B. Supervisor de Seguridad (Watchdog de hardware)
-        Uner_VerificarLatido(&protocolo_uart, ahora);
+        Uner_VerificarLatido(&protocolo_uart, msActual);
 
         // C. Motores asíncronos de bajo nivel
         HCSR04_TaskContinuous();

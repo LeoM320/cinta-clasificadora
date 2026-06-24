@@ -14,6 +14,9 @@
 #define CMD_PING            0x15    
 #define CMD_CLOSE           0x16    
 
+#define CMD_SET_VARIABLE    0x25
+#define CMD_GET_VARIABLE    0x26
+
 #define ACK_HANDSHAKE       0x81    
 #define ACK_GET_VERSION     0x82    
 #define ACK_SET_SERVO       0x83    
@@ -23,7 +26,32 @@
 #define ACK_PONG            0x95    
 
 #define ERR_UNKNOWN_CMD     0xFF    
-#define ERR_BAD_PAYLOAD     0xFE    
+#define ERR_BAD_PAYLOAD     0xFE
+
+typedef enum {
+    eSetServoMin0=0,
+    eSetServoMax0,
+    eSetServoMin1,
+    eSetServoMax1,
+    eSetServoMin2,
+    eSetServoMax2,
+    eSetCiego,
+    eSetDelta,
+    eSetCoordenadaEstacion1,
+    eSetCoordenadaEstacion2,
+    eSetCoordenadaEstacion3,
+    eSetMsDesplegar0,
+    eSetMsRetraer0,
+    eSetMsEsperar0,
+    eSetMsDesplegar1,
+    eSetMsRetraer1,
+    eSetMsEsperar1,
+    eSetMsDesplegar2,
+    eSetMsRetraer2,
+    eSetMsEsperar2,
+    eSetDistanciaBase,
+    eSetDisparosMax
+}_eSetVariables;
 
 void Comandos_Procesar(UnerProtocol_t *u);
 void Comandos_EnviarLog(const char* mensaje);

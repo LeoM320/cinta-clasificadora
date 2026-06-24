@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>600</height>
+    <height>719</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,17 +15,33 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="3" column="0">
+    <item row="4" column="0">
      <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <property name="sizeConstraint">
+       <enum>QLayout::SizeConstraint::SetMaximumSize</enum>
+      </property>
       <item>
        <layout class="QGridLayout" name="gridLayout_2">
+        <property name="sizeConstraint">
+         <enum>QLayout::SizeConstraint::SetMaximumSize</enum>
+        </property>
         <property name="horizontalSpacing">
          <number>6</number>
         </property>
-        <item row="0" column="1">
-         <widget class="QPushButton" name="sv1_0_btn">
+        <item row="2" column="1">
+         <widget class="QPushButton" name="sv3_0_btn">
           <property name="text">
            <string>0°</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_4">
+          <property name="text">
+           <string>Servo 3</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -36,31 +52,30 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
-         <widget class="QPushButton" name="sv3_0_btn">
+        <item row="0" column="1">
+         <widget class="QPushButton" name="sv1_0_btn">
           <property name="text">
            <string>0°</string>
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
-         <widget class="QPushButton" name="sv2_0_btn">
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_3">
           <property name="text">
-           <string>0°</string>
+           <string>Servo 2</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
-        <item row="1" column="3">
-         <widget class="QPushButton" name="sv2_180_btn">
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_2">
           <property name="text">
-           <string>180°</string>
+           <string>Servo 1</string>
           </property>
-         </widget>
-        </item>
-        <item row="0" column="3">
-         <widget class="QPushButton" name="sv1_180_btn">
-          <property name="text">
-           <string>180°</string>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignCenter</set>
           </property>
          </widget>
         </item>
@@ -78,6 +93,27 @@
           </property>
          </widget>
         </item>
+        <item row="0" column="3">
+         <widget class="QPushButton" name="sv1_180_btn">
+          <property name="text">
+           <string>180°</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QPushButton" name="sv2_0_btn">
+          <property name="text">
+           <string>0°</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="3">
+         <widget class="QPushButton" name="sv2_180_btn">
+          <property name="text">
+           <string>180°</string>
+          </property>
+         </widget>
+        </item>
         <item row="0" column="2">
          <widget class="QPushButton" name="sv1_90_btn">
           <property name="text">
@@ -85,33 +121,13 @@
           </property>
          </widget>
         </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>Servo 1</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignmentFlag::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_3">
-          <property name="text">
-           <string>Servo 2</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignmentFlag::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_4">
-          <property name="text">
-           <string>Servo 3</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignmentFlag::AlignCenter</set>
+        <item row="3" column="0" colspan="4">
+         <widget class="QPlainTextEdit" name="plainTextEdit">
+          <property name="minimumSize">
+           <size>
+            <width>800</width>
+            <height>0</height>
+           </size>
           </property>
          </widget>
         </item>
@@ -119,17 +135,120 @@
       </item>
      </layout>
     </item>
-    <item row="0" column="1" rowspan="4">
-     <layout class="QHBoxLayout" name="horizontalLayout_4">
+    <item row="0" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <layout class="QGridLayout" name="gridLayout_3">
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_6">
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>Comunicación Serial</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButtonOpenClose">
+        <property name="text">
+         <string>OPEN</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="comboBoxPuertos"/>
+      </item>
+     </layout>
+    </item>
+    <item row="1" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout_6">
+      <property name="sizeConstraint">
+       <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
+      </property>
+      <item>
+       <layout class="QGridLayout" name="gridLayout_4">
+        <property name="sizeConstraint">
+         <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
+        </property>
+        <item row="1" column="1">
+         <widget class="QPushButton" name="pushButton_2">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>100</width>
+            <height>100</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>100</height>
+           </size>
+          </property>
           <property name="text">
-           <string>Modo</string>
+           <string>OFF</string>
           </property>
          </widget>
         </item>
+        <item row="1" column="0">
+         <widget class="QPushButton" name="pushButton">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>100</width>
+            <height>100</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>100</width>
+            <height>100</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>ON</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="2">
+         <widget class="QLabel" name="label_7">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777198</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>Cinta</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="1" rowspan="5">
+     <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <item>
+       <layout class="QGridLayout" name="gridLayout_3">
         <item row="2" column="1">
          <widget class="QSpinBox" name="coord_est1_spinBox">
           <property name="enabled">
@@ -137,6 +256,9 @@
           </property>
           <property name="maximum">
            <number>1500</number>
+          </property>
+          <property name="value">
+           <number>400</number>
           </property>
          </widget>
         </item>
@@ -157,7 +279,10 @@
         <item row="6" column="1">
          <widget class="QSpinBox" name="esp_sv0_spinBox">
           <property name="maximum">
-           <number>1000</number>
+           <number>20000</number>
+          </property>
+          <property name="value">
+           <number>500</number>
           </property>
          </widget>
         </item>
@@ -165,6 +290,9 @@
          <widget class="QSpinBox" name="set_sv2min_spinBox">
           <property name="maximum">
            <number>180</number>
+          </property>
+          <property name="value">
+           <number>90</number>
           </property>
          </widget>
         </item>
@@ -208,12 +336,18 @@
           <property name="maximum">
            <number>500</number>
           </property>
+          <property name="value">
+           <number>500</number>
+          </property>
          </widget>
         </item>
         <item row="12" column="1">
          <widget class="QSpinBox" name="esp_sv1_spinBox">
           <property name="maximum">
-           <number>1000</number>
+           <number>20000</number>
+          </property>
+          <property name="value">
+           <number>500</number>
           </property>
          </widget>
         </item>
@@ -222,12 +356,18 @@
           <property name="maximum">
            <number>500</number>
           </property>
+          <property name="value">
+           <number>500</number>
+          </property>
          </widget>
         </item>
         <item row="13" column="1">
          <widget class="QSpinBox" name="ret_sv1_spinBox">
           <property name="maximum">
-           <number>100</number>
+           <number>20000</number>
+          </property>
+          <property name="value">
+           <number>500</number>
           </property>
          </widget>
         </item>
@@ -243,12 +383,18 @@
           <property name="maximum">
            <number>1000</number>
           </property>
+          <property name="value">
+           <number>500</number>
+          </property>
          </widget>
         </item>
         <item row="8" column="1">
          <widget class="QSpinBox" name="coord_est2_spinBox">
           <property name="maximum">
            <number>1500</number>
+          </property>
+          <property name="value">
+           <number>830</number>
           </property>
          </widget>
         </item>
@@ -285,6 +431,9 @@
           <property name="maximum">
            <number>100</number>
           </property>
+          <property name="value">
+           <number>5</number>
+          </property>
          </widget>
         </item>
         <item row="2" column="0">
@@ -299,12 +448,18 @@
           <property name="maximum">
            <number>1500</number>
           </property>
+          <property name="value">
+           <number>1310</number>
+          </property>
          </widget>
         </item>
         <item row="4" column="1">
          <widget class="QSpinBox" name="set_sv0min_spinBox">
           <property name="maximum">
            <number>180</number>
+          </property>
+          <property name="value">
+           <number>90</number>
           </property>
          </widget>
         </item>
@@ -319,13 +474,6 @@
          <widget class="QSpinBox" name="set_sv2max_spinBox">
           <property name="maximum">
            <number>180</number>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QPushButton" name="cinta_modo">
-          <property name="text">
-           <string>PushButton</string>
           </property>
          </widget>
         </item>
@@ -360,7 +508,7 @@
         <item row="3" column="0">
          <widget class="QPushButton" name="set_sv0max_btn">
           <property name="text">
-           <string>Servo 1 Míximo</string>
+           <string>Servo 1 Máximo</string>
           </property>
          </widget>
         </item>
@@ -368,6 +516,9 @@
          <widget class="QSpinBox" name="set_sv1min_spinBox">
           <property name="maximum">
            <number>180</number>
+          </property>
+          <property name="value">
+           <number>90</number>
           </property>
          </widget>
         </item>
@@ -381,14 +532,20 @@
         <item row="11" column="1">
          <widget class="QSpinBox" name="desp_sv1_spinBox">
           <property name="maximum">
-           <number>1000</number>
+           <number>20000</number>
+          </property>
+          <property name="value">
+           <number>500</number>
           </property>
          </widget>
         </item>
         <item row="5" column="1">
          <widget class="QSpinBox" name="desp_sv0_spinBox">
           <property name="maximum">
-           <number>1000</number>
+           <number>20000</number>
+          </property>
+          <property name="value">
+           <number>500</number>
           </property>
          </widget>
         </item>
@@ -411,6 +568,9 @@
           <property name="maximum">
            <number>500</number>
           </property>
+          <property name="value">
+           <number>500</number>
+          </property>
          </widget>
         </item>
         <item row="21" column="0">
@@ -421,7 +581,14 @@
          </widget>
         </item>
         <item row="21" column="1">
-         <widget class="QSpinBox" name="dist_hcsr_spinBox"/>
+         <widget class="QSpinBox" name="dist_hcsr_spinBox">
+          <property name="maximum">
+           <number>250</number>
+          </property>
+          <property name="value">
+           <number>200</number>
+          </property>
+         </widget>
         </item>
         <item row="22" column="0">
          <widget class="QPushButton" name="disparosMax_btn">
@@ -431,37 +598,37 @@
          </widget>
         </item>
         <item row="22" column="1">
-         <widget class="QSpinBox" name="disparosMax_spinBox"/>
+         <widget class="QSpinBox" name="disparosMax_spinBox">
+          <property name="value">
+           <number>10</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QPushButton" name="modo_ciego_btn">
+          <property name="text">
+           <string>MODO CIEGO</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QPushButton" name="modo_sensor_btn">
+          <property name="text">
+           <string>MODO SENSOR</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
      </layout>
     </item>
-    <item row="0" column="0">
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <item>
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Comunicación Serial</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pushButtonOpenClose">
-        <property name="text">
-         <string>OPEN</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QComboBox" name="comboBoxPuertos"/>
-      </item>
-     </layout>
-    </item>
-    <item row="2" column="0">
+    <item row="3" column="0">
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <property name="sizeConstraint">
+         <enum>QLayout::SizeConstraint::SetMaximumSize</enum>
+        </property>
         <item>
          <widget class="QLabel" name="distancia_lbl">
           <property name="text">
@@ -473,89 +640,6 @@
          <widget class="QLabel" name="irs_lbl">
           <property name="text">
            <string>irs</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-     </layout>
-    </item>
-    <item row="1" column="0">
-     <layout class="QHBoxLayout" name="horizontalLayout_6">
-      <property name="sizeConstraint">
-       <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
-      </property>
-      <item>
-       <layout class="QGridLayout" name="gridLayout_4">
-        <property name="sizeConstraint">
-         <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
-        </property>
-        <item row="1" column="1">
-         <widget class="QPushButton" name="pushButton_2">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>100</width>
-            <height>100</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>100</width>
-            <height>100</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>PushButton</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QPushButton" name="pushButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>100</width>
-            <height>100</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>100</width>
-            <height>100</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>PushButton</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0" colspan="2">
-         <widget class="QLabel" name="label_7">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>30</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>16777198</width>
-            <height>30</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>TextLabel</string>
           </property>
          </widget>
         </item>

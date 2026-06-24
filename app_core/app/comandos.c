@@ -4,6 +4,7 @@
 #include "../hal/include/hal_timer.h"
 #include "../hal/include/hal_servo.h"
 #include "../drivers/hcsr04.h"
+#include "../app_cinta/app_cinta.h"
 #include <string.h>
 
 extern UnerProtocol_t protocolo_uart;
@@ -117,6 +118,14 @@ void Comandos_Procesar(UnerProtocol_t *u) {
                 Uner_Agregar8(u, ACK_GET_IR_STATES);
                 Uner_Agregar8(u, pack);
                 Uner_CerrarCarga(u);
+                break;
+            }
+
+            case CMD_SET_VARIABLE:
+            {
+                _eSetVariables idVariable = Uner_Obtener8(u,1);
+                uint32_t valor = Uner_Obtener32(u,2);
+                AppCinta_SetVariable(idVariable, valor);
                 break;
             }
 
