@@ -21,7 +21,7 @@ static char msgBuffer[80];
 static uint8_t cajasEnCola = 0;
 static uint32_t velocidadGlobal = 0;
 
-static _sCajas colaCajas[10];
+//static _sCajas colaCajas[10];
 static _eEstaciones eEstacion1 = eEstaciones_Libre;
 static _eEstaciones eEstacion2 = eEstaciones_Libre;
 static _eEstaciones eEstacion3 = eEstaciones_Libre;
@@ -34,6 +34,8 @@ static Temporizador servo1;
 static Temporizador servo2;
 static Temporizador servo3;
 
+
+static Temporizador cajas[30];
 
 static uint8_t ServoMin0=90;
 static uint8_t ServoMax0=0;
@@ -145,27 +147,26 @@ void AppCinta_Task(void){
             if(disparosValidos > 0){
                 uint16_t alturaPromedio = (uint16_t)(sumaAlturas / disparosValidos);
                 char charCaja = '?';
+                uint16_t msEsperar;
                 if(cajaA > cajaB && cajaA > cajaC){
-                    colaCajas[cajasEnCola].id = 0;
+                    msEsperar = (coordenadaEstacion1*(msFinalDePasada - msInicioDePasada))/100;
+                    Temp_IniciarMS(&cajas[cajasEnCola++], msEsperar);
                     charCaja = 'A';
+                    sprintf(msgBuffer, "FIN LECTURA | Caja %c | Altura: %u mm | Ms: %lu", charCaja, alturaPromedio, msEsperar);
+                    Comandos_EnviarLog(msgBuffer);
                 }else if(cajaB > cajaA && cajaB > cajaC){
-                    colaCajas[cajasEnCola].id = 1;
+                    msEsperar = (coordenadaEstacion2*(msFinalDePasada - msInicioDePasada))/100;
+                    Temp_IniciarMS(&cajas[cajasEnCola++], msEsperar);
                     charCaja = 'B';
+                    sprintf(msgBuffer, "FIN LECTURA | Caja %c | Altura: %u mm | Ms: %lu", charCaja, alturaPromedio, msEsperar);
+                    Comandos_EnviarLog(msgBuffer);
                 }else if(cajaC > cajaA && cajaC > cajaB){
-                    colaCajas[cajasEnCola].id = 2;
+                    msEsperar = (coordenadaEstacion3*(msFinalDePasada - msInicioDePasada))/100; //mm/ms
+                    Temp_IniciarMS(&cajas[cajasEnCola++], msEsperar);
                     charCaja = 'C';
-                }else{
-                    colaCajas[cajasEnCola].id = 3;
+                    sprintf(msgBuffer, "FIN LECTURA | Caja %c | Altura: %u mm | Ms: %lu", charCaja, alturaPromedio, msEsperar);
+                    Comandos_EnviarLog(msgBuffer);
                 }
-                velocidadGlobal = 10000UL / (msFinalDePasada - msInicioDePasada);
-                sprintf(msgBuffer, "FIN LECTURA | Caja %c | Altura: %u mm | Vel: %lu", charCaja, alturaPromedio, velocidadGlobal);
-                Comandos_EnviarLog(msgBuffer); 
-                colaCajas[cajasEnCola].coordX = 0;
-                colaCajas[cajasEnCola].e1 = 0;
-                colaCajas[cajasEnCola].e2 = 0;
-                colaCajas[cajasEnCola].e3 = 0;
-                cajasEnCola++; 
-                
             } else {
                 Comandos_EnviarLog("Objeto ignorado (Fuera de rango)");
             }
@@ -175,28 +176,15 @@ void AppCinta_Task(void){
             break;
     }
     if(ciego){
-        if(cajasEnCola>0&&Temp_Expiro(&trasladarMm)){
-            Temp_Reiniciar(&trasladarMm);
-            for(i=0;i<cajasEnCola;i++){
-                colaCajas[i].coordX += velocidadGlobal;
-                
-                //Log de debug para ver la posición en tiempo real
-                sprintf(msgBuffer, "Caja[%u] (Tipo %u) -> X = %u mm", i, colaCajas[i].id, colaCajas[i].coordX);
-                Comandos_EnviarLog(msgBuffer);
-            }
-        }
         switch(eEstacion1){
             case eEstaciones_Libre:
                 for(i=0;i<cajasEnCola;i++){
-                    if(colaCajas[i].id==0){
-                        coordenadaEvaluada=colaCajas[i].coordX;
-                        if(coordenadaEvaluada>=limiteInferiorEstacion1&&coordenadaEvaluada<=limiteSuperiorEstacion1){
-                            AppCinta_QuitarDeCola(i);
-                            HAL_Servo_SetAngle(0, ServoMax0);
-                            Temp_IniciarMS(&servo1, msDesplegar0);
-                            eEstacion1 = eEstaciones_Desplegando;
-                            break;
-                        }
+                    if(Temp_Expiro(&cajas[i])){
+                        AppCinta_QuitarDeCola(i);
+                        HAL_Servo_SetAngle(0, ServoMax0);
+                        Temp_IniciarMS(&servo1, msDesplegar0);
+                        eEstacion1 = eEstaciones_Desplegando;
+                        break;
                     }
                 }
                 break;
@@ -417,6 +405,8 @@ void AppCinta_Detener(void){
 
 void AppCinta_QuitarDeCola(uint8_t pos){
     for(uint8_t i=pos;i<(cajasEnCola-1);i++){
+        cajas[i]
+
         colaCajas[i].id=colaCajas[i+1].id;
         colaCajas[i].coordX=colaCajas[i+1].coordX;
         colaCajas[i].e1=colaCajas[i+1].e1;

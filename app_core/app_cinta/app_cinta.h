@@ -28,13 +28,13 @@ typedef enum {
     eEstaciones_Retrayendo
 }_eEstaciones;
 
-typedef struct {
+/*typedef struct {
     uint8_t id;
     uint16_t coordX;
     uint8_t e1;
     uint8_t e2;
     uint8_t e3;
-}_sCajas;
+}_sCajas;*/
 
 void AppCinta_Init(void);
 void AppCinta_Task(void);
