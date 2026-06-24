@@ -40,6 +40,10 @@ void GPIO_Init(void)
     HAL_GPIO_WRITE_LOW(ECHO_PORT, ECHO_PIN);       // 1. Desactivar resistencia Pull-up
     HAL_GPIO_SET_INPUT(ECHO_DDR, ECHO_PIN);        // 2. Configurar como ENTRADA de alta impedancia
 
+    // ¡ESTO ES VITAL PARA QUE FUNCIONE EL SENSOR!
+    PCICR |= (1 << PCIE0);       // Habilita interrupciones en el Puerto B
+    PCMSK0 |= (1 << ECHO_PIN);   // Desenmascara específicamente el pin del Eco (PB2)
+
     // ==========================================
     // Servomotores (Actuadores de clasificación)
     // ==========================================
@@ -84,16 +88,17 @@ void GPIO_Init(void)
     // ==========================================
     // Cinta Transportadora
     // ==========================================
-    HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
+    HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN); 
     HAL_GPIO_SET_OUTPUT(CINTA_DDR, CINTA_PIN);
 }
 
-// Al final de tu gpio.c...
-
+//DAR VUELTA POR DIOS
 void GPIO_SetCinta(bool estado) {
     if (estado) {
+        // TRUE = Encender -> Ponemos el pin en LOW (Lógica Negativa)
         HAL_GPIO_WRITE_HIGH(CINTA_PORT, CINTA_PIN);
     } else {
+        // FALSE = Apagar -> Ponemos el pin en HIGH
         HAL_GPIO_WRITE_LOW(CINTA_PORT, CINTA_PIN);
     }
 }

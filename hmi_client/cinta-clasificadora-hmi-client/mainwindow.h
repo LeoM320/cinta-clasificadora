@@ -2,9 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "UnerSerialQT.h"
-#include <QQuickWidget>
 #include <QTimer>
+#include <QQuickWidget>
+#include "unerSerialQT.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -18,29 +18,28 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-signals:
-    void distanceUpdated(int cm);
-    void irStatesUpdated(bool ir0, bool ir1, bool ir2, bool ir3);
-    void connectionStatusChanged(bool connected);
-    // NUEVA SEÑAL PARA EL LOG
-    void logMessageReceived(QString message);
-
 public slots:
-    Q_INVOKABLE void encenderCinta();
-    Q_INVOKABLE void apagarCinta();
-    Q_INVOKABLE void setServo(int servoId, int angulo);
+    void encenderCinta();
+    void apagarCinta();
+    void setServo(int servoId, int angulo);
 
-    void requestDistance();
-    void requestIrStates();
-    void onRx();
+signals:
+    void connectionStatusChanged(bool connected);
+    void distanceUpdated(int distance);
+    void irStatesUpdated(bool ir0, bool ir1, bool ir2, bool ir3);
+    void logMessageReceived(const QString &message);
 
 private slots:
-    void on_pushButtonOpenClose_clicked();
-    void onTimerPolling(); // Nuevo slot para el bucle continuo
+    void onTimerPolling();
+    void onRx(uint8_t cmdId);
 
 private:
+    void requestDistance();
+    void requestIrStates();
+
     Ui::MainWindow *ui;
     UnerSerialQT *puertoSerie;
-    QTimer *timerPolling; // Temporizador para la telemetría
+    QTimer *timerPolling;
 };
-#endif
+
+#endif // MAINWINDOW_H

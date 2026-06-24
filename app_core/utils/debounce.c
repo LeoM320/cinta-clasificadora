@@ -1,54 +1,49 @@
 /**
  * @file debounce.c
- * @brief Implementación lógica del filtro anti-rebote.
- *
- * @details
- * El algoritmo implementado funciona como un filtro de integración de tiempo:
- * 1. Cada vez que detecta un cambio (un posible rebote o una pulsación real) entre 
- *    la lectura actual y el estado previo, reinicia el temporizador de validación.
- * 2. Si la señal deja de cambiar (los rebotes mecánicos cesan) y el temporizador 
- *    logra expirar, se considera que la señal se ha estabilizado.
- * 3. Si ese nuevo estado estable difiere del último estado validado, se actualiza la salida.
+ * @brief Implementación lógica del filtro anti-rebote y detector de flancos.
  */
 
 #include "debounce.h"
 
-/**
- * @brief Prepara el filtro estableciendo los valores iniciales y arrancando el temporizador.
- * 
- * @param[in,out] d              Puntero a la instancia del filtro a inicializar.
- * @param[in]     tiempo_ms      Tiempo de estabilidad exigido para confirmar un cambio.
- * @param[in]     estado_inicial Estado de reposo esperado.
- */
 void Debounce_Init(Debouncer_t *d, uint32_t tiempo_ms, bool estado_inicial) {
     d->estado_validado = estado_inicial;
     d->estado_previo = estado_inicial;
-    d->tiempo_ms = tiempo_ms;
     
-    // Iniciamos el temporizador (se reiniciará automáticamente al detectar cambios por el ruido)
+    // Inicializamos los flancos apagados
+    d->flanco_subida = false;
+    d->flanco_bajada = false;
+    
+    d->tiempo_ms = tiempo_ms;
     Temp_IniciarMS(&d->timer, tiempo_ms);
 }
 
-/**
- * @brief Máquina de estados que filtra el ruido temporal de la señal de entrada.
- * 
- * @param[in,out] d             Puntero a la instancia del filtro.
- * @param[in]     lectura_cruda Muestra actual tomada del hardware.
- * @return bool                 El estado libre de rebotes que puede ser utilizado por la lógica de la aplicación.
- */
 bool Debounce_Update(Debouncer_t *d, bool lectura_cruda) {
     
-    // Si detectamos un flanco (transición de señal) respecto a la última lectura registrada
+    // 1. Limpiamos los flancos del ciclo anterior. 
+    // Esto garantiza que el aviso de flanco dure exactamente 1 iteración del Super Loop.
+    d->flanco_subida = false;
+    d->flanco_bajada = false;
+
+    // 2. Si detectamos inestabilidad respecto a la última lectura cruda
     if (lectura_cruda != d->estado_previo) {
-        Temp_Reiniciar(&d->timer); // Reseteamos el reloj de validación porque hubo inestabilidad
+        Temp_Reiniciar(&d->timer); 
         d->estado_previo = lectura_cruda;
     }
 
-    // Si la señal cruda se ha mantenido constante durante todo el 'tiempo_ms' exigido
+    // 3. Si la señal cruda se ha mantenido constante el tiempo exigido
     if (Temp_Expiro(&d->timer)) {
         
-        // Verificamos si este nuevo estado estable consolida un cambio real frente al estado de salida actual
+        // Verificamos si este nuevo estado estable es diferente a la salida que teníamos
         if (d->estado_validado != d->estado_previo) {
+            
+            // ¡Acá ocurre la transición validada! Evaluamos la dirección del flanco
+            if (d->estado_previo == true) {
+                d->flanco_subida = true;  // Pasó de LOW a HIGH
+            } else {
+                d->flanco_bajada = true;  // Pasó de HIGH a LOW
+            }
+            
+            // Actualizamos la salida con el nuevo estado consolidado
             d->estado_validado = d->estado_previo;
         }
     }

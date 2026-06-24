@@ -2,65 +2,105 @@
 #include "config/gpio.h"
 #include "hal/include/hal_timer.h"
 #include "hal/include/hal_uart.h"
-
-// Apuntamos al nuevo módulo incremental paso a paso
-#include "app_cinta/app_cinta_final.h"
+#include "hal/include/hal_servo.h"
 
 #include "utils/uner_protocol.h"
 #include "app/comandos.h"
+#include "utils/heartbeat.h"
+#include "utils/temporizador.h" 
+#include "app_cinta/app_cinta.h" 
 
-// Variable global del protocolo para el manejo de tramas
-UnerProtocol_t protocolo_uart; 
+// Variables globales
+UnerProtocol_t protocolo_uart;
 
-/**
- * @brief Callback de error para reaccionar a alarmas de la cinta.
- * @details Inyectamos esta función en el módulo de la cinta para mantener
- * separada la lógica de control de la lógica de comunicación.
- */
-void ManejarErrorCinta(uint8_t codigo_error) {
-    Uner_AbrirCarga(&protocolo_uart, 1);
-    Uner_Agregar8(&protocolo_uart, codigo_error);
-    Uner_CerrarCarga(&protocolo_uart);
-    Uner_Transmitir(&protocolo_uart);
+// ==========================================
+// CALLBACKS DE RED Y ESTADO VISUAL
+// ==========================================
+
+void Evento_ConexionEstablecida(void) {
+    // 0xAA = 10101010 (Parpadeo rápido a 4 Hz indicando tráfico de red)
+    Heartbeat_SetSequence(0xAA);
+    AppCinta_Iniciar();
 }
+
+void Evento_ConexionPerdida(void) {
+    // 0x80 = 10000000 (Flash muy corto una vez por segundo indicando Standby)
+    Heartbeat_SetSequence(0x80);
+    Comandos_EnviarLog("FATAL: PC DESCONECTADA.");
+    
+    AppCinta_Detener();
+    
+    // Alineación segura de servos
+    for(uint8_t i = 0; i < 3; i++) {
+        HAL_Servo_SetAngle(i, 90);
+    }
+}
+
+// ==========================================
+// FUNCIÓN PRINCIPAL
+// ==========================================
 
 int main(void)
 {
-    // 1. SECCIÓN CRÍTICA: Desactivar interrupciones durante la inicialización
+    // 1. SECCIÓN CRÍTICA
     HAL_DISABLE_INTERRUPTS();
 
-    // 2. Inicialización Eléctrica y del Sistema de Baja Capa
+    // 2. Inicialización de Hardware
     GPIO_Init();
-    HAL_Timer0_Init();      // Inicializa el Systick de 1ms
-    HAL_UART_Init(115200);  // Configura la UART a la velocidad de la HMI en Qt
+    HAL_Timer0_Init();      
+    HAL_UART_Init(115200);  
 
-    // 3. Inicialización del Módulo de Control Final
-    App_CintaFinal_Init();
+    // 3. Inicialización de Periféricos y Actuadores
+    HCSR04_InitContinuous(false);
+    HAL_Servo_Init();
+    
+    for(uint8_t i = 0; i < 3; i++) {
+        HAL_Servo_Enable(i);       
+        HAL_Servo_SetAngle(i, 90);  
+    }
 
-    // 4. Inyección del Callback de Errores (Arquitectura limpia)
-    App_CintaFinal_SetErrorCallback(ManejarErrorCinta); 
-
-    // 5. Inicialización del Buffer de Protocolo UNER
+    // Arrancamos el Heartbeat en modo Desconectado (0x80) a 125ms/bit
+    Heartbeat_Init(125, 0x80); 
+    
     Uner_Init(&protocolo_uart);
+    
+    // Inyección de dependencias (Callbacks)
+    Uner_RegistrarCallbackConexion(&protocolo_uart, Evento_ConexionEstablecida);
+    Uner_RegistrarCallbackDesconexion(&protocolo_uart, Evento_ConexionPerdida);
 
-    // 6. Fin de Sección Crítica: Habilitamos interrupciones globales
+    // 4. Fin de Sección Crítica
     HAL_ENABLE_INTERRUPTS();
+    
+    AppCinta_Init();
+    Comandos_EnviarLog("SISTEMA INICIADO. ESPERANDO A QT...");
 
-    // 7. SUPER LOOP ASÍNCRONO NO BLOQUEANTE
+    // 5. SUPER LOOP ASÍNCRONO NO BLOQUEANTE
     while (1)
     {
-        // Extraer bytes de la UART "al vuelo" y alimentar la FSM del protocolo
-        Uner_Recibir(&protocolo_uart, HAL_GetMillis());
+        uint32_t ahora = HAL_GetMillis();
         
-        // Procesar tramas listas y ejecutar comandos (ej: CMD_SET_BELT)
+        // A. Gestión de Protocolo
+        Uner_Recibir(&protocolo_uart, ahora);
         Comandos_Procesar(&protocolo_uart);
+        Uner_Transmitir(&protocolo_uart);
         
-        // MANTENER VIVO EL DRIVER ULTRASÓNICO (Faltaba esto)
-        HCSR04_Task(); 
+        // B. Supervisor de Seguridad (Watchdog de hardware)
+        Uner_VerificarLatido(&protocolo_uart, ahora);
+
+        // C. Motores asíncronos de bajo nivel
+        HCSR04_TaskContinuous();
+        Heartbeat_Task();
         
-        // Ejecutar nuestra máquina de estados incremental de la cinta
-        App_CintaFinal_Task();
+        // D. Lógica principal de la aplicación
+        AppCinta_Task();
     }
 
     return 0;
+}
+
+// ==========================================
+// ISR
+// ==========================================
+ISR(PCINT0_vect) {
+    HCSR04_EXTI_Handler();
 }

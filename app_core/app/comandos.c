@@ -1,41 +1,54 @@
-// ==========================================
-// app/comandos.c
-// ==========================================
-
-/**
- * @file comandos.c
- * @brief Implementación lógica del procesador de comandos de la aplicación.
- */
-
 #include "comandos.h"
 #include "../config/hardware.h"
-#include "../hal/include/hal_gpio.h"
+#include "../config/gpio.h"
 #include "../hal/include/hal_timer.h"
 #include "../hal/include/hal_servo.h"
 #include "../drivers/hcsr04.h"
-#include "../app_cinta/app_cinta_final.h"
+#include <string.h>
 
+extern UnerProtocol_t protocolo_uart;
 static const uint8_t FIRMWARE_VERSION[3] = {1, 0, 0};
 
 void Comandos_Procesar(UnerProtocol_t *u) {
-    
-    // Validar si hay una nueva trama lista desde la FSM
     if (Uner_Comando(u)) {
-        
         uint8_t cmd_id = Uner_IDComando(u);
 
         switch(cmd_id) {
             
-            // ------------------------------------------
-            // SISTEMA Y TELEMETRÍA BASE
-            // ------------------------------------------
-            case CMD_ALIVE:
+            case CMD_HANDSHAKE:
             {
-                uint32_t uptime = HAL_GetMillis();
-                Uner_AbrirCarga(u, 5);
-                Uner_Agregar8(u, ACK_ALIVE);
-                Uner_Agregar32(u, uptime);
+                Uner_AbrirCarga(u, 2);
+                Uner_Agregar8(u, ACK_HANDSHAKE); 
+                Uner_Agregar8(u, 0x00); 
                 Uner_CerrarCarga(u);
+                
+                // Disparamos el callback de Conexión
+                if (u->on_conexion != NULL) {
+                    u->on_conexion();
+                }
+                break;
+            }
+
+            case CMD_PING: 
+            {
+                uint8_t contador = 0;
+                if (u->rx.length >= 2) {
+                    contador = Uner_Obtener8(u, 1);
+                }
+
+                Uner_AbrirCarga(u, 2);               
+                Uner_Agregar8(u, ACK_PONG);          
+                Uner_Agregar8(u, contador);          
+                Uner_CerrarCarga(u);
+                break;
+            }
+
+            case CMD_CLOSE: 
+            {
+                // Si el host cierra intencionalmente, disparamos la desconexión
+                if (u->on_desconexion != NULL) {
+                    u->on_desconexion();
+                }
                 break;
             }
 
@@ -50,27 +63,17 @@ void Comandos_Procesar(UnerProtocol_t *u) {
                 break;
             }
 
-            // ------------------------------------------
-            // CONTROL DE ACTUADORES
-            // ------------------------------------------
             case CMD_SET_SERVO:
             {
-                // Validación de seguridad: Requiere Servo_ID y Ángulo
                 if (u->rx.length >= 3) {
                     uint8_t servo_id = Uner_Obtener8(u, 1);
                     uint8_t angulo = Uner_Obtener8(u, 2);
                     
-                    HAL_Servo_Enable(servo_id);
                     HAL_Servo_SetAngle(servo_id, angulo);
                     
                     Uner_AbrirCarga(u, 2);
                     Uner_Agregar8(u, ACK_SET_SERVO);
-                    Uner_Agregar8(u, servo_id); // Confirmamos qué servo se movió
-                    Uner_CerrarCarga(u);
-                } else {
-                    Uner_AbrirCarga(u, 2);
-                    Uner_Agregar8(u, ERR_BAD_PAYLOAD);
-                    Uner_Agregar8(u, cmd_id);
+                    Uner_Agregar8(u, servo_id); 
                     Uner_CerrarCarga(u);
                 }
                 break;
@@ -81,8 +84,7 @@ void Comandos_Procesar(UnerProtocol_t *u) {
                 if (u->rx.length >= 2) {
                     uint8_t estado = Uner_Obtener8(u, 1);
                     
-                    // ¡LLAMAMOS A LA API DE LA CINTA!
-                    App_CintaFinal_SetEstado(estado > 0);
+                    GPIO_SetCinta(estado > 0);
 
                     Uner_AbrirCarga(u, 2);
                     Uner_Agregar8(u, ACK_SET_BELT);
@@ -92,34 +94,32 @@ void Comandos_Procesar(UnerProtocol_t *u) {
                 break;
             }
 
-            // ------------------------------------------
-            // LECTURA DE SENSORES
-            // ------------------------------------------
             case CMD_GET_DISTANCE:
             {
-                uint16_t distancia = App_CintaFinal_GetDistancia();
+                uint16_t dist_mm = HCSR04_GetDistance(); 
+
                 Uner_AbrirCarga(u, 3);
                 Uner_Agregar8(u, ACK_GET_DISTANCE);
-                Uner_Agregar16(u, distancia);
+                Uner_Agregar16(u, dist_mm); 
                 Uner_CerrarCarga(u);
                 break;
             }
 
             case CMD_GET_IR_STATES:
             {
-                // Le pedimos a la cinta los estados filtrados
-                uint8_t ir_pack = App_CintaFinal_GetIRPack(); 
+                uint8_t pack = 0;
+                if (GPIO_LeerSensor(0)) pack |= (1 << 0);
+                if (GPIO_LeerSensor(1)) pack |= (1 << 1);
+                if (GPIO_LeerSensor(2)) pack |= (1 << 2);
+                if (GPIO_LeerSensor(3)) pack |= (1 << 3);
                 
                 Uner_AbrirCarga(u, 2);
                 Uner_Agregar8(u, ACK_GET_IR_STATES);
-                Uner_Agregar8(u, ir_pack);
+                Uner_Agregar8(u, pack);
                 Uner_CerrarCarga(u);
                 break;
             }
 
-            // ------------------------------------------
-            // MANEJO DE ERRORES
-            // ------------------------------------------
             default:
             {
                 Uner_AbrirCarga(u, 2);
@@ -130,31 +130,22 @@ void Comandos_Procesar(UnerProtocol_t *u) {
             }
         }
         
-        // Ejecutar transmisión física al Host
-        Uner_Transmitir(u);
+        //Uner_Transmitir(u);
     }
 }
 
-#include <string.h> // Necesario para strlen
-
-extern UnerProtocol_t protocolo_uart;
-
 void Comandos_EnviarLog(const char* mensaje) {
     uint8_t len = strlen(mensaje);
-    if (len > 60) len = 60; // Protección
+    if (len > 60) len = 60; 
 
-    // Abrimos carga: len (texto) + 1 (Comando) + 1 (Terminador nulo)
     Uner_AbrirCarga(&protocolo_uart, len + 2); 
-    
     Uner_Agregar8(&protocolo_uart, CMD_SEND_LOG); 
     
     for(uint8_t i = 0; i < len; i++) {
         Uner_Agregar8(&protocolo_uart, (uint8_t)mensaje[i]);
     }
     
-    // Agregamos el terminador de string de C
     Uner_Agregar8(&protocolo_uart, '\0'); 
-    
     Uner_CerrarCarga(&protocolo_uart);
-    Uner_Transmitir(&protocolo_uart);
+    //Uner_Transmitir(&protocolo_uart);
 }

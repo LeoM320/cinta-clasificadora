@@ -14,8 +14,8 @@ Rectangle {
     Connections {
         target: backend
 
-        function onDistanceUpdated(cm) {
-            lblDistancia.text = cm + " cm"
+        function onDistanceUpdated(mm) {
+            lblDistancia.text = mm + " mm"
         }
 
         function onIrStatesUpdated(ir0, ir1, ir2, ir3) {
@@ -27,7 +27,7 @@ Rectangle {
 
         function onConnectionStatusChanged(connected) {
             if (!connected) {
-                lblDistancia.text = "-- cm"
+                lblDistancia.text = "-- mm"
                 lblIR.text = "Desconectado"
             }
         }
@@ -74,7 +74,7 @@ Rectangle {
                 Label { text: "SENSORES (TIEMPO REAL)"; color: "white"; font.bold: true }
                 RowLayout {
                     Label { text: "Distancia actual:"; color: "white" }
-                    Label { id: lblDistancia; text: "-- cm"; color: "#66fcf1"; font.pixelSize: 16; font.bold: true; Layout.leftMargin: 10 }
+                    Label { id: lblDistancia; text: "-- mm"; color: "#66fcf1"; font.pixelSize: 16; font.bold: true; Layout.leftMargin: 10 }
                 }
                 RowLayout {
                     Label { text: "Sensores Ópticos:"; color: "white" }

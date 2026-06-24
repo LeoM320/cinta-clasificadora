@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QQmlContext>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -9,10 +10,42 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     puertoSerie = new UnerSerialQT(this);
-    connect(puertoSerie->Direccion(), &QSerialPort::readyRead, this, &MainWindow::onRx);
-    puertoSerie->ListarPuertos(ui->comboBoxPuertos);
 
-    // Configuración del Timer de Polling (Ejecutará onTimerPolling cada vez que venza)
+    // ==========================================
+    // 1. INYECCIÓN DEL PROTOCOLO DE CONEXIÓN
+    // ==========================================
+    puertoSerie->registrarCallbackConexion([this]() {
+        qDebug() << "\n==================================================";
+        qDebug() << "✅ [QT CALLBACK] EVENTO: CONEXIÓN ESTABLECIDA";
+        qDebug() << "   -> Iniciando motor de telemetría a 125ms...";
+        qDebug() << "==================================================\n";
+
+        emit connectionStatusChanged(true);
+        timerPolling->start(500);
+    });
+
+    // ==========================================
+    // 2. INYECCIÓN DEL PROTOCOLO DE EMERGENCIA
+    // ==========================================
+    puertoSerie->registrarCallbackDesconexion([this]() {
+        qDebug() << "\n==================================================";
+        qDebug() << "🚨 [QT CALLBACK] EVENTO: CONEXIÓN PERDIDA/CORTADA";
+        qDebug() << "   -> Deteniendo telemetría por seguridad...";
+        qDebug() << "==================================================\n";
+
+        timerPolling->stop();
+        emit connectionStatusChanged(false);
+    });
+
+    // ==========================================
+    // 3. VINCULACIÓN DE SEÑALES Y UI
+    // ==========================================
+    puertoSerie->vincularUI(ui->comboBoxPuertos, ui->pushButtonOpenClose);
+    connect(puertoSerie, &UnerSerialQT::nuevoComando, this, &MainWindow::onRx);
+
+    // ==========================================
+    // 4. CONFIGURACIÓN DE TIMERS Y QML
+    // ==========================================
     timerPolling = new QTimer(this);
     connect(timerPolling, &QTimer::timeout, this, &MainWindow::onTimerPolling);
 
@@ -29,8 +62,7 @@ MainWindow::~MainWindow() {
 // SLOTS DE CONTROL (QML -> C++)
 // ==========================================
 
-void MainWindow::encenderCinta()
-{
+void MainWindow::encenderCinta() {
     if (!puertoSerie->Comprobar()) return;
     puertoSerie->AbrirCarga(2);
     puertoSerie->AgregarDato((uint8_t)0x06); // CMD_SET_BELT
@@ -39,8 +71,7 @@ void MainWindow::encenderCinta()
     puertoSerie->EnviarBufTx();
 }
 
-void MainWindow::apagarCinta()
-{
+void MainWindow::apagarCinta() {
     if (!puertoSerie->Comprobar()) return;
     puertoSerie->AbrirCarga(2);
     puertoSerie->AgregarDato((uint8_t)0x06); // CMD_SET_BELT
@@ -49,8 +80,7 @@ void MainWindow::apagarCinta()
     puertoSerie->EnviarBufTx();
 }
 
-void MainWindow::setServo(int servoId, int angulo)
-{
+void MainWindow::setServo(int servoId, int angulo) {
     if (!puertoSerie->Comprobar()) return;
     if (servoId < 0 || servoId > 2) return;
     if (angulo < 0 || angulo > 180) return;
@@ -62,6 +92,10 @@ void MainWindow::setServo(int servoId, int angulo)
     puertoSerie->CerrarCarga();
     puertoSerie->EnviarBufTx();
 }
+
+// ==========================================
+// TELEMETRÍA Y POLLING
+// ==========================================
 
 void MainWindow::requestDistance() {
     if (!puertoSerie->Comprobar()) return;
@@ -79,95 +113,63 @@ void MainWindow::requestIrStates() {
     puertoSerie->EnviarBufTx();
 }
 
-// Bucle Continuo de Peticiones
 void MainWindow::onTimerPolling() {
     if (!puertoSerie->Comprobar()) return;
 
-    // Usamos una variable estática para alternar las peticiones (Ping-Pong)
+    // Ping-Pong de peticiones de datos
     static bool flag_alternar = false;
-
     if (flag_alternar) {
         requestDistance();
     } else {
         requestIrStates();
     }
-
     flag_alternar = !flag_alternar;
 }
 
-void MainWindow::onRx() {
-    puertoSerie->Recibir();
-    if (puertoSerie->Comando()) {
-        uint8_t cmdId = puertoSerie->IDComando();
+// ==========================================
+// RECEPCIÓN DE DATOS DEL MICRO
+// ==========================================
 
-        switch (cmdId) {
-        case 0x81:
-            ui->pushButtonOpenClose->setText("CLOSE");
-            ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: green; color: black; font-weight: bold; }");
-            emit connectionStatusChanged(true);
+void MainWindow::onRx(uint8_t cmdId) {
+    switch (cmdId) {
 
-            // EL MICRO RESPONDIÓ. INICIAMOS LA METRALLA DE TELEMETRÍA (4 veces por segundo)
-            timerPolling->start(750);
-            break;
+    case 0x84: // ACK_GET_DISTANCE
+        emit distanceUpdated(puertoSerie->ObtenerUint16_t(1));
+        break;
 
-        case 0x84:
-            emit distanceUpdated(puertoSerie->ObtenerUint16_t(1));
-            break;
-
-        case 0x85:
-        {
-            uint8_t irPack = puertoSerie->ObtenerUint8_t(1);
-            emit irStatesUpdated((irPack & 1) != 0, (irPack & 2) != 0, (irPack & 4) != 0, (irPack & 8) != 0);
-            break;
-        }
-
-            // NUEVO CASE PARA EL LOG (0x09)
-        case 0x09:
-        {
-            QByteArray textBytes;
-            int i = 1; // Empezamos en el índice 1 (el 0 es el ID del comando)
-
-            while (true) {
-                uint8_t letra = puertoSerie->ObtenerUint8_t(i);
-
-                // Si encontramos el terminador nulo o pasamos el límite de seguridad, cortamos
-                if (letra == '\0' || i > 65) {
-                    break;
-                }
-
-                textBytes.append((char)letra);
-                i++;
-            }
-
-            QString logStr = QString::fromLatin1(textBytes);
-            emit logMessageReceived(logStr);
-            break;
-        }
-
-        case 0x86: case 0x83: break;
-        default: qDebug() << "RX Desconocido:" << Qt::hex << cmdId; break;
-        }
+    case 0x85: // ACK_GET_IR_STATES
+    {
+        uint8_t irPack = puertoSerie->ObtenerUint8_t(1);
+        emit irStatesUpdated((irPack & 1) != 0, (irPack & 2) != 0, (irPack & 4) != 0, (irPack & 8) != 0);
+        break;
     }
-}
 
-void MainWindow::on_pushButtonOpenClose_clicked() {
-    if (puertoSerie->Comprobar()) {
-        timerPolling->stop(); // FRENAR EL POLLING ANTES DE CERRAR
-        emit connectionStatusChanged(false);
-        QTimer::singleShot(50, this, [this]() {
-            puertoSerie->CerrarPuerto();
-            ui->pushButtonOpenClose->setText("OPEN");
-            ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: red; color: white; font-weight: bold; }");
-        });
-    } else {
-        if (puertoSerie->AbrirPuerto(ui->comboBoxPuertos->currentText(), QSerialPort::Baud115200, QIODevice::ReadWrite)) {
-            ui->pushButtonOpenClose->setText("WAIT...");
-            ui->pushButtonOpenClose->setStyleSheet("QPushButton { background-color: yellow; color: black; font-weight: bold; }");
+    case 0x09: // CMD_SEND_LOG
+    {
+        QByteArray textBytes;
+        int i = 1;
 
-            puertoSerie->AbrirCarga(1);
-            puertoSerie->AgregarDato((uint8_t)0x01);
-            puertoSerie->CerrarCarga();
-            puertoSerie->EnviarBufTx();
+        while (true) {
+            uint8_t letra = puertoSerie->ObtenerUint8_t(i);
+            if (letra == '\0' || i > 65) {
+                break;
+            }
+            textBytes.append((char)letra);
+            i++;
         }
+
+        QString logStr = QString::fromLatin1(textBytes);
+        qDebug() << "LOG: " <<logStr;
+        emit logMessageReceived(logStr);
+        break;
+    }
+
+    case 0x86: // ACK_SET_BELT
+    case 0x83: // ACK_SET_SERVO
+        break;
+
+    default:
+        qDebug() << "[MainWindow] RX Desconocido o No Manejado:" << Qt::hex << cmdId;
+        break;
     }
 }
