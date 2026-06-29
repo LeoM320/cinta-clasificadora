@@ -1,28 +1,40 @@
 #include "../app_cinta/app_cinta.h"
 #include "../app/comandos.h"
 #include "../utils/temporizador.h"
+#include "../utils/ringbuffer.h"
 #include "../hal/include/hal_servo.h"
 #include "../hal/include/hal_timer.h"
-#include <stdio.h>  
+#include <stdio.h>
+
+#define MAX_CAJAS_E1 10
+#define MAX_CAJAS_E2 10
+#define MAX_CAJAS_E3 10
+
+// 1. Estructura de dominio
+typedef struct {
+    Temporizador timerViaje; 
+    uint16_t alturaPromedio; 
+    char idClase;            
+} _sCaja;
+
+// 2. Memoria física estática para los Buffers Circulares
+static _sCaja mem_rb_estacion1[MAX_CAJAS_E1];
+static _sCaja mem_rb_estacion2[MAX_CAJAS_E2];
+static _sCaja mem_rb_estacion3[MAX_CAJAS_E3];
+
+// 3. Controladores del Ring Buffer
+static RingBuffer_t rbEstacion1;
+static RingBuffer_t rbEstacion2;
+static RingBuffer_t rbEstacion3;
 
 static _eEstacion0 eEstacion0 = eEstacion0_Libre;
 
-// Solo necesitamos el sensor de la entrada (S0) para disparar el cálculo
 static Debouncer_t debounceIR0;
-
 static uint16_t distanciaBase = 180; 
-
 static uint8_t nDisparosHcsr04;
 static uint16_t disparosMm[20]; 
 static uint8_t idMuestraAnterior = 0;
 static char msgBuffer[80];
-
-// ==========================================
-// FIFO: SISTEMA DE TRACKING POR LAZO ABIERTO
-// ==========================================
-static uint8_t cajasEnCola = 0;
-static uint8_t idDestino[30];        // 0=Estación1, 1=Estación2, 2=Estación3
-static Temporizador timerViaje[30];  // Arreglo de temporizadores (ETA)
 
 static _eEstaciones eEstacion1 = eEstaciones_Libre;
 static _eEstaciones eEstacion2 = eEstaciones_Libre;
@@ -47,6 +59,21 @@ static uint16_t coordenadaEstacion1 = 400;
 static uint16_t coordenadaEstacion2 = 830; 
 static uint16_t coordenadaEstacion3 = 1310;
 
+// ==========================================
+// PARÁMETROS DE CLASIFICACIÓN (Alturas en mm)
+// ==========================================
+static uint16_t hMinA = 52, hMaxA = 68;
+static uint16_t hMinB = 72, hMaxB = 88;
+static uint16_t hMinC = 92, hMaxC = 108;
+
+// ==========================================
+// MATRIZ DE ENRUTAMIENTO (Routing Table)
+// 1 = Estación 1 | 2 = Estación 2 | 3 = Estación 3 | 0 = Descarte (Dejar pasar)
+// ==========================================
+static uint8_t destinoClaseA = 1; 
+static uint8_t destinoClaseB = 2;
+static uint8_t destinoClaseC = 3;
+
 // Tiempos mecánicos de los actuadores
 static uint16_t msDesplegar0=500;
 static uint16_t msRetraer0=500;
@@ -60,10 +87,14 @@ static uint8_t disparosMax=10;
 void AppCinta_Init(void){
     Debounce_Init(&debounceIR0, 50, true);
     HCSR04_SetMode(true);
+
+    // Inicializamos los Ring Buffers
+    RingBuffer_Init(&rbEstacion1, mem_rb_estacion1, sizeof(_sCaja), MAX_CAJAS_E1);
+    RingBuffer_Init(&rbEstacion2, mem_rb_estacion2, sizeof(_sCaja), MAX_CAJAS_E2);
+    RingBuffer_Init(&rbEstacion3, mem_rb_estacion3, sizeof(_sCaja), MAX_CAJAS_E3);
 }
 
 void AppCinta_Task(void){
-    // Solo actualizamos el IR0, ahorramos ciclos de CPU
     Debounce_Update(&debounceIR0, GPIO_LeerSensor(0));
     
     uint8_t cajaA, cajaB, cajaC, i;
@@ -71,7 +102,7 @@ void AppCinta_Task(void){
     uint8_t disparosValidos = 0; 
 
     // ---------------------------------------------------------
-    // SUBSISTEMA DE MEDICIÓN (S0)
+    // SUBSISTEMA DE MEDICIÓN (S0 - PRODUCTOR)
     // ---------------------------------------------------------
     switch(eEstacion0){
         case eEstacion0_Detenido:
@@ -82,7 +113,6 @@ void AppCinta_Task(void){
                 msInicioDePasada = HAL_GetMillis();
                 nDisparosHcsr04 = 0;
                 idMuestraAnterior = HCSR04_GetMuestraID();
-                
                 Comandos_EnviarLog("Inicio de lectura de caja");
                 eEstacion0 = eEstacion0_Midiendo;
             }
@@ -106,77 +136,95 @@ void AppCinta_Task(void){
             cajaA = 0; cajaB = 0; cajaC = 0;
             sumaAlturas = 0;
             disparosValidos = 0;
+            
+            // 1. FASE DE CLASIFICACIÓN Y VOTACIÓN
             for(i = 0; i < nDisparosHcsr04; i++){
                 if(distanciaBase >= disparosMm[i]){
                     uint16_t alturaTemporal = distanciaBase - disparosMm[i];
-                    if((alturaTemporal >= 52 && alturaTemporal <= 68) ||
-                       (alturaTemporal > 72 && alturaTemporal <= 88) ||
-                       (alturaTemporal > 92 && alturaTemporal <= 108)){
-                        sumaAlturas += alturaTemporal;
-                        disparosValidos++;
-                        if(alturaTemporal >= 52 && alturaTemporal <= 68){
-                            cajaA++;
-                        }else if(alturaTemporal > 72 && alturaTemporal <= 88){
-                            cajaB++;
-                        }else if(alturaTemporal > 92 && alturaTemporal <= 108){
-                            cajaC++;
-                        }
+                    
+                    // Evaluamos usando los límites paramétricos
+                    if(alturaTemporal >= hMinA && alturaTemporal <= hMaxA){
+                        cajaA++; sumaAlturas += alturaTemporal; disparosValidos++;
+                    }else if(alturaTemporal >= hMinB && alturaTemporal <= hMaxB){
+                        cajaB++; sumaAlturas += alturaTemporal; disparosValidos++;
+                    }else if(alturaTemporal >= hMinC && alturaTemporal <= hMaxC){
+                        cajaC++; sumaAlturas += alturaTemporal; disparosValidos++;
                     }
                 }
             }
             
-            if(disparosValidos > 0 && cajasEnCola < 30){
+            if(disparosValidos > 0){
                 uint16_t alturaPromedio = (uint16_t)(sumaAlturas / disparosValidos);
-                char charCaja = '?';
-                uint16_t msEsperar;
+                char claseGanadora = '?';
                 
-                // Cálculo de ETA (Estimated Time of Arrival) basado en cinemática:
-                // v = dx/dt -> msEsperar = (distancia * dt) / longitud_caja
-                if(cajaA > cajaB && cajaA > cajaC){
-                    msEsperar = (coordenadaEstacion1 * (msFinalDePasada - msInicioDePasada)) / 100;
-                    idDestino[cajasEnCola] = 0;
-                    Temp_IniciarMS(&timerViaje[cajasEnCola++], msEsperar);
-                    charCaja = 'A';
-                }else if(cajaB > cajaA && cajaB > cajaC){
-                    msEsperar = (coordenadaEstacion2 * (msFinalDePasada - msInicioDePasada)) / 100;
-                    idDestino[cajasEnCola] = 1;
-                    Temp_IniciarMS(&timerViaje[cajasEnCola++], msEsperar);
-                    charCaja = 'B';
-                }else if(cajaC > cajaA && cajaC > cajaB){
-                    msEsperar = (coordenadaEstacion3 * (msFinalDePasada - msInicioDePasada)) / 100;
-                    idDestino[cajasEnCola] = 2;
-                    Temp_IniciarMS(&timerViaje[cajasEnCola++], msEsperar);
-                    charCaja = 'C';
-                }
-                
-                if (charCaja != '?') {
-                    sprintf(msgBuffer, "Caja %c | Alt: %u mm | ETA: %u ms", charCaja, alturaPromedio, msEsperar);
-                    Comandos_EnviarLog(msgBuffer);
+                // Determinamos quién ganó la votación
+                if(cajaA > cajaB && cajaA > cajaC) claseGanadora = 'A';
+                else if(cajaB > cajaA && cajaB > cajaC) claseGanadora = 'B';
+                else if(cajaC > cajaA && cajaC > cajaB) claseGanadora = 'C';
+
+                if (claseGanadora != '?') {
+                    
+                    // 2. FASE DE ENRUTAMIENTO LÓGICO
+                    uint8_t estacionDestino = 0;
+                    if (claseGanadora == 'A') estacionDestino = destinoClaseA;
+                    else if (claseGanadora == 'B') estacionDestino = destinoClaseB;
+                    else if (claseGanadora == 'C') estacionDestino = destinoClaseC;
+
+                    // 3. ASIGNACIÓN FÍSICA (Punteros)
+                    uint16_t coordDestino = 0;
+                    RingBuffer_t* rbDestino = NULL;
+                    
+                    switch(estacionDestino){
+                        case 1: coordDestino = coordenadaEstacion1; rbDestino = &rbEstacion1; break;
+                        case 2: coordDestino = coordenadaEstacion2; rbDestino = &rbEstacion2; break;
+                        case 3: coordDestino = coordenadaEstacion3; rbDestino = &rbEstacion3; break;
+                        default: break; // Destino 0 (o inválido) = Puntero NULL, se ignora.
+                    }
+
+                    // 4. INYECCIÓN AL RING BUFFER
+                    if (rbDestino != NULL) {
+                        // v = dx/dt -> ms = (x * dt) / cte
+                        uint16_t msEsperar = (coordDestino * (msFinalDePasada - msInicioDePasada)) / 100;
+                        
+                        _sCaja nuevaCaja;
+                        nuevaCaja.alturaPromedio = alturaPromedio;
+                        nuevaCaja.idClase = claseGanadora;
+                        Temp_IniciarMS(&nuevaCaja.timerViaje, msEsperar);
+                        
+                        if(RingBuffer_Push(rbDestino, &nuevaCaja)){
+                            sprintf(msgBuffer, "Clasificada %c -> E%u | ETA: %u ms", claseGanadora, estacionDestino, msEsperar);
+                            Comandos_EnviarLog(msgBuffer);
+                        } else {
+                            Comandos_EnviarLog("Error: Buffer de la estación saturado");
+                        }
+                    } else {
+                        sprintf(msgBuffer, "Caja %c dejada pasar (Destino 0)", claseGanadora);
+                        Comandos_EnviarLog(msgBuffer);
+                    }
                 }
             } else {
-                Comandos_EnviarLog("Objeto ignorado o cola llena");
+                Comandos_EnviarLog("Objeto ignorado (Fuera de tolerancia)");
             }
             eEstacion0 = eEstacion0_Libre;
             break;
     }
 
     // ---------------------------------------------------------
-    // SUBSISTEMAS DE EYECCIÓN (Basados 100% en Temporizadores)
+    // SUBSISTEMAS DE EYECCIÓN (CONSUMIDORES 100% ASÍNCRONOS)
     // ---------------------------------------------------------
 
     // ESTACIÓN 1
     switch(eEstacion1){
-        case eEstaciones_Libre:
-            for(i=0; i<cajasEnCola; i++){
-                if(idDestino[i] == 0 && Temp_Expiro(&timerViaje[i])){
-                    AppCinta_QuitarDeCola(i);
-                    HAL_Servo_SetAngle(0, ServoMax0);
-                    Temp_IniciarMS(&servo1, msDesplegar0);
-                    eEstacion1 = eEstaciones_Desplegando;
-                    break;
-                }
+        case eEstaciones_Libre: {
+            _sCaja* proximaCaja = (_sCaja*) RingBuffer_Peek(&rbEstacion1);
+            if (proximaCaja != NULL && Temp_Expiro(&(proximaCaja->timerViaje))) {
+                RingBuffer_Pop(&rbEstacion1, NULL); 
+                HAL_Servo_SetAngle(0, ServoMax0);
+                Temp_IniciarMS(&servo1, msDesplegar0);
+                eEstacion1 = eEstaciones_Desplegando;
             }
             break;
+        }
         case eEstaciones_Desplegando:
             if(Temp_Expiro(&servo1)){
                 HAL_Servo_SetAngle(0, ServoMin0);
@@ -194,17 +242,16 @@ void AppCinta_Task(void){
 
     // ESTACIÓN 2
     switch(eEstacion2){
-        case eEstaciones_Libre:
-            for(i=0; i<cajasEnCola; i++){
-                if(idDestino[i] == 1 && Temp_Expiro(&timerViaje[i])){
-                    AppCinta_QuitarDeCola(i);
-                    HAL_Servo_SetAngle(1, ServoMax1);
-                    Temp_IniciarMS(&servo2, msDesplegar1);
-                    eEstacion2 = eEstaciones_Desplegando;
-                    break;
-                }
+        case eEstaciones_Libre: {
+            _sCaja* proximaCaja = (_sCaja*) RingBuffer_Peek(&rbEstacion2);
+            if (proximaCaja != NULL && Temp_Expiro(&(proximaCaja->timerViaje))) {
+                RingBuffer_Pop(&rbEstacion2, NULL); 
+                HAL_Servo_SetAngle(1, ServoMax1);
+                Temp_IniciarMS(&servo2, msDesplegar1);
+                eEstacion2 = eEstaciones_Desplegando;
             }
             break;
+        }
         case eEstaciones_Desplegando:
             if(Temp_Expiro(&servo2)){
                 HAL_Servo_SetAngle(1, ServoMin1);
@@ -222,17 +269,16 @@ void AppCinta_Task(void){
 
     // ESTACIÓN 3
     switch(eEstacion3){
-        case eEstaciones_Libre:
-            for(i=0; i<cajasEnCola; i++){
-                if(idDestino[i] == 2 && Temp_Expiro(&timerViaje[i])){
-                    AppCinta_QuitarDeCola(i);
-                    HAL_Servo_SetAngle(2, ServoMax2);
-                    Temp_IniciarMS(&servo3, msDesplegar2);
-                    eEstacion3 = eEstaciones_Desplegando;
-                    break;
-                }
+        case eEstaciones_Libre: {
+            _sCaja* proximaCaja = (_sCaja*) RingBuffer_Peek(&rbEstacion3);
+            if (proximaCaja != NULL && Temp_Expiro(&(proximaCaja->timerViaje))) {
+                RingBuffer_Pop(&rbEstacion3, NULL); 
+                HAL_Servo_SetAngle(2, ServoMax2);
+                Temp_IniciarMS(&servo3, msDesplegar2);
+                eEstacion3 = eEstaciones_Desplegando;
             }
             break;
+        }
         case eEstaciones_Desplegando:
             if(Temp_Expiro(&servo3)){
                 HAL_Servo_SetAngle(2, ServoMin2);
@@ -257,20 +303,6 @@ void AppCinta_Iniciar(void){
 void AppCinta_Detener(void){
     GPIO_SetCinta(false);
     eEstacion0 = eEstacion0_Detenido;
-}
-
-void AppCinta_QuitarDeCola(uint8_t pos){
-    if (cajasEnCola == 0) return; 
-    
-    // Desplazamos los arreglos un índice hacia atrás
-    for(uint8_t i = pos; i < (cajasEnCola - 1); i++){
-        timerViaje[i] = timerViaje[i+1];
-        idDestino[i]  = idDestino[i+1];
-    }
-    
-    // Limpiamos el último elemento
-    idDestino[cajasEnCola - 1] = 0;
-    cajasEnCola--;
 }
 
 void AppCinta_SetVariable(_eSetVariables idVariable, uint32_t valor){
@@ -308,6 +340,17 @@ void AppCinta_SetVariable(_eSetVariables idVariable, uint32_t valor){
         
         case eSetDistanciaBase: distanciaBase = valor; break;
         case eSetDisparosMax: disparosMax = valor; break;
+
+        case eSetHMinA: hMinA = valor; break;
+        case eSetHMaxA: hMaxA = valor; break;
+        case eSetHMinB: hMinB = valor; break;
+        case eSetHMaxB: hMaxB = valor; break;
+        case eSetHMinC: hMinC = valor; break;
+        case eSetHMaxC: hMaxC = valor; break;
+        
+        case eSetDestinoA: destinoClaseA = (uint8_t)valor; break;
+        case eSetDestinoB: destinoClaseB = (uint8_t)valor; break;
+        case eSetDestinoC: destinoClaseC = (uint8_t)valor; break;
         default: return;
     }
     sprintf(msgBuffer, "SET: %s = %lu", nombresVariables[idVariable], valor);

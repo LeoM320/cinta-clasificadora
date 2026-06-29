@@ -50,7 +50,16 @@ typedef enum {
     eSetMsRetraer2,
     eSetMsEsperar2,
     eSetDistanciaBase,
-    eSetDisparosMax
+    eSetDisparosMax,
+    eSetHMinA,
+    eSetHMaxA,
+    eSetHMinB,
+    eSetHMaxB,
+    eSetHMinC,
+    eSetHMaxC,
+    eSetDestinoA,
+    eSetDestinoB,
+    eSetDestinoC
 }_eSetVariables;
 
 void Comandos_Procesar(UnerProtocol_t *u);
