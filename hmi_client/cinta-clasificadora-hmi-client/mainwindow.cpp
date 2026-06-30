@@ -446,8 +446,8 @@ void MainWindow::on_modo_ciego_btn_clicked()
 }
 
 // --- ENRUTAMIENTO CAJA A ---
-void MainWindow::on_set_destinoA_btn_clicked() {
-    uint32_t valor = ui->destinoA_spinBox->value(); 
+void MainWindow::on_dest_cajaA_btn_clicked() {
+    uint32_t valor = ui->dest_cajaA_spinBox->value();
     
     puertoSerie->AbrirCarga(6);
     puertoSerie->AgregarDato((uint8_t)0x25);          // CMD_SET_VARIABLE
@@ -458,8 +458,8 @@ void MainWindow::on_set_destinoA_btn_clicked() {
 }
 
 // --- ENRUTAMIENTO CAJA B ---
-void MainWindow::on_set_destinoB_btn_clicked() {
-    uint32_t valor = ui->destinoB_spinBox->value(); 
+void MainWindow::on_dest_cajaB_btn_clicked() {
+    uint32_t valor = ui->dest_cajaB_spinBox->value();
     
     puertoSerie->AbrirCarga(6);
     puertoSerie->AgregarDato((uint8_t)0x25);          // CMD_SET_VARIABLE
@@ -470,8 +470,8 @@ void MainWindow::on_set_destinoB_btn_clicked() {
 }
 
 // --- ENRUTAMIENTO CAJA C ---
-void MainWindow::on_set_destinoC_btn_clicked() {
-    uint32_t valor = ui->destinoC_spinBox->value(); 
+void MainWindow::on_dest_cajaC_btn_clicked() {
+    uint32_t valor = ui->dest_cajaC_spinBox->value();
     
     puertoSerie->AbrirCarga(6);
     puertoSerie->AgregarDato((uint8_t)0x25);          // CMD_SET_VARIABLE
@@ -480,3 +480,5 @@ void MainWindow::on_set_destinoC_btn_clicked() {
     puertoSerie->CerrarCarga();
     puertoSerie->EnviarBufTx();
 }
+
+

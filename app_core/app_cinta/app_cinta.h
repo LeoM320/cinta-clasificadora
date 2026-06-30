@@ -34,7 +34,5 @@ void AppCinta_Task(void);
 void AppCinta_Iniciar(void);
 void AppCinta_Detener(void);
 
-void AppCinta_QuitarDeCola(uint8_t pos);
-
 void AppCinta_SetVariable(_eSetVariables idVariable, uint32_t valor);
 #endif /* APP_CINTA_H_ */

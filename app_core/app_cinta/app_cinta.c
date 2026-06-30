@@ -10,6 +10,34 @@
 #define MAX_CAJAS_E2 10
 #define MAX_CAJAS_E3 10
 
+/**
+ * @brief Procesa la Máquina de Estados de una estación genérica.
+ * @param estado Puntero a la variable de estado de la estación (ej. &eEstacion1)
+ * @param rbPropio Buffer circular de entrada para esta estación
+ * @param rbSiguiente Buffer circular de la próxima estación (NULL si es la última)
+ * @param idEstacion ID lógico de la estación (1, 2 o 3)
+ * @param servoId ID del actuador hardware (0, 1 o 2)
+ * @param tempServo Temporizador de software asociado al servo
+ * @param sensorIR Puntero al debouncer del sensor óptico de esta estación
+ * @param msEsperar Retardo cinemático tras la detección del sensor
+ * @param msDesplegar Tiempo que tarda el servo en abrir
+ * @param msRetraer Tiempo que tarda el servo en cerrar
+ * @param anguloMax Posición PWM de eyección
+ * @param anguloMin Posición PWM de reposo
+ */
+static void ProcesarEstacionFSM(_eEstaciones* estado,
+                                RingBuffer_t* rbPropio,
+                                RingBuffer_t* rbSiguiente,
+                                uint8_t idEstacion,
+                                uint8_t servoId,
+                                Temporizador* tempServo,
+                                Debouncer_t* sensorIR,
+                                uint16_t msEsperar,
+                                uint16_t msDesplegar,
+                                uint16_t msRetraer,
+                                uint8_t anguloMax,
+                                uint8_t anguloMin);
+
 // 1. Estructura de dominio
 typedef struct {
     Temporizador timerViaje; 
@@ -37,7 +65,6 @@ static Debouncer_t debounceIR1;
 static Debouncer_t debounceIR2;
 static Debouncer_t debounceIR3;
 
-static Debouncer_t debounceIR0;
 static uint16_t distanciaBase = 180; 
 static uint8_t nDisparosHcsr04;
 static uint16_t disparosMm[20]; 
@@ -230,149 +257,18 @@ void AppCinta_Task(void){
     }
 
     // ---------------------------------------------------------
-    // SUBSISTEMAS DE EYECCIÓN (CONSUMIDORES ASÍNCRONOS)
+    // SUBSISTEMAS DE EYECCIÓN
     // ---------------------------------------------------------
 
-    // ESTACIÓN 1
-    switch(eEstacion1){
-        case eEstaciones_Libre: {
-            if (ciego) {
-                _sCaja* proximaCaja = (_sCaja*) RingBuffer_Peek(&rbEstacion1);
-                if (proximaCaja != NULL && Temp_Expiro(&(proximaCaja->timerViaje))) {
-                    RingBuffer_Pop(&rbEstacion1, NULL); 
-                    HAL_Servo_SetAngle(0, ServoMax0);
-                    Temp_IniciarMS(&servo1, msDesplegar0);
-                    eEstacion1 = eEstaciones_Desplegando;
-                }
-            } else {
-                if (debounceIR1.flanco_subida) {
-                    _sCaja cajaActual;
-                    if (RingBuffer_Pop(&rbEstacion1, &cajaActual)) { 
-                        if (cajaActual.estacionDestino == 1) {
-                            Temp_IniciarMS(&servo1, msEsperar0);
-                            eEstacion1 = eEstaciones_Esperando;
-                        } else {
-                            RingBuffer_Push(&rbEstacion2, &cajaActual);
-                        }
-                    }
-                }
-            }
-            break;
-        }
-        case eEstaciones_Esperando:
-            if(Temp_Expiro(&servo1)){
-                HAL_Servo_SetAngle(0, ServoMax0);
-                Temp_IniciarMS(&servo1, msDesplegar0);
-                eEstacion1 = eEstaciones_Desplegando;
-            }
-            break;
-        case eEstaciones_Desplegando:
-            if(Temp_Expiro(&servo1)){
-                HAL_Servo_SetAngle(0, ServoMin0);
-                Temp_IniciarMS(&servo1, msRetraer0);
-                eEstacion1 = eEstaciones_Retrayendo;
-            }
-            break;
-        case eEstaciones_Retrayendo:
-            if(Temp_Expiro(&servo1)){
-                eEstacion1 = eEstaciones_Libre;
-            }
-            break;
-    }
-
-    // ESTACIÓN 2
-    switch(eEstacion2){
-        case eEstaciones_Libre: {
-            if (ciego) {
-                _sCaja* proximaCaja = (_sCaja*) RingBuffer_Peek(&rbEstacion2);
-                if (proximaCaja != NULL && Temp_Expiro(&(proximaCaja->timerViaje))) {
-                    RingBuffer_Pop(&rbEstacion2, NULL); 
-                    HAL_Servo_SetAngle(1, ServoMax1);
-                    Temp_IniciarMS(&servo2, msDesplegar1);
-                    eEstacion2 = eEstaciones_Desplegando;
-                }
-            } else {
-                if (debounceIR2.flanco_subida) { // CORREGIDO: debounceIR2
-                    _sCaja cajaActual;
-                    if (RingBuffer_Pop(&rbEstacion2, &cajaActual)) {  // CORREGIDO: rbEstacion2
-                        if (cajaActual.estacionDestino == 2) {
-                            Temp_IniciarMS(&servo2, msEsperar1);
-                            eEstacion2 = eEstaciones_Esperando;
-                        } else {
-                            RingBuffer_Push(&rbEstacion3, &cajaActual);
-                        }
-                    }
-                }
-            }
-            break;
-        }
-        case eEstaciones_Esperando:
-            if(Temp_Expiro(&servo2)){
-                HAL_Servo_SetAngle(1, ServoMax1);
-                Temp_IniciarMS(&servo2, msDesplegar1);
-                eEstacion2 = eEstaciones_Desplegando;
-            }
-            break;
-        case eEstaciones_Desplegando:
-            if(Temp_Expiro(&servo2)){
-                HAL_Servo_SetAngle(1, ServoMin1);
-                Temp_IniciarMS(&servo2, msRetraer1);
-                eEstacion2 = eEstaciones_Retrayendo;
-            }
-            break;
-        case eEstaciones_Retrayendo:
-            if(Temp_Expiro(&servo2)){
-                eEstacion2 = eEstaciones_Libre;
-            }
-            break;
-    }
-
-    // ESTACIÓN 3
-    switch(eEstacion3){  // CORREGIDO: eEstacion3 (Tenías eEstacion1 de vuelta)
-        case eEstaciones_Libre: {
-            if (ciego) {
-                _sCaja* proximaCaja = (_sCaja*) RingBuffer_Peek(&rbEstacion3);
-                if (proximaCaja != NULL && Temp_Expiro(&(proximaCaja->timerViaje))) {
-                    RingBuffer_Pop(&rbEstacion3, NULL); 
-                    HAL_Servo_SetAngle(2, ServoMax2); // CORREGIDO: 2 y ServoMax2
-                    Temp_IniciarMS(&servo3, msDesplegar2);
-                    eEstacion3 = eEstaciones_Desplegando;
-                }
-            } else {
-                if (debounceIR3.flanco_subida) {
-                    _sCaja cajaActual;
-                    if (RingBuffer_Pop(&rbEstacion3, &cajaActual)) {
-                        if (cajaActual.estacionDestino == 3) {
-                            Temp_IniciarMS(&servo3, msEsperar2);
-                            eEstacion3 = eEstaciones_Esperando;
-                        }
-                        // Si el destino es 0 o hubo un error mecánico, simplemente no hacemos nada 
-                        // y la caja cae por el final de la cinta (Buffer desocupado).
-                    }
-                }
-            }
-            break;
-        }
-        case eEstaciones_Esperando:
-            if(Temp_Expiro(&servo3)){ // CORREGIDO: servo3
-                HAL_Servo_SetAngle(2, ServoMax2); // CORREGIDO
-                Temp_IniciarMS(&servo3, msDesplegar2);
-                eEstacion3 = eEstaciones_Desplegando;
-            }
-            break;
-        case eEstaciones_Desplegando:
-            if(Temp_Expiro(&servo3)){
-                HAL_Servo_SetAngle(2, ServoMin2); // CORREGIDO
-                Temp_IniciarMS(&servo3, msRetraer2);
-                eEstacion3 = eEstaciones_Retrayendo;
-            }
-            break;
-        case eEstaciones_Retrayendo:
-            if(Temp_Expiro(&servo3)){
-                eEstacion3 = eEstaciones_Libre;
-            }
-            break;
-    }
+    ProcesarEstacionFSM(&eEstacion1, &rbEstacion1, &rbEstacion2, 1, 0, &servo1, &debounceIR1, 
+                        msEsperar0, msDesplegar0, msRetraer0, ServoMax0, ServoMin0);
+                        
+    ProcesarEstacionFSM(&eEstacion2, &rbEstacion2, &rbEstacion3, 2, 1, &servo2, &debounceIR2, 
+                        msEsperar1, msDesplegar1, msRetraer1, ServoMax1, ServoMin1);
+                        
+    ProcesarEstacionFSM(&eEstacion3, &rbEstacion3, NULL,         3, 2, &servo3, &debounceIR3, 
+                        msEsperar2, msDesplegar2, msRetraer2, ServoMax2, ServoMin2);
+    
 }
 
 void AppCinta_Iniciar(void){
@@ -440,4 +336,67 @@ void AppCinta_SetVariable(_eSetVariables idVariable, uint32_t valor){
     }
     sprintf(msgBuffer, "SET: %s = %lu", nombresVariables[idVariable], valor);
     Comandos_EnviarLog(msgBuffer);
+}
+
+static void ProcesarEstacionFSM(_eEstaciones* estado,
+                                RingBuffer_t* rbPropio,
+                                RingBuffer_t* rbSiguiente,
+                                uint8_t idEstacion,
+                                uint8_t servoId,
+                                Temporizador* tempServo,
+                                Debouncer_t* sensorIR,
+                                uint16_t msEsperar,
+                                uint16_t msDesplegar,
+                                uint16_t msRetraer,
+                                uint8_t anguloMax,
+                                uint8_t anguloMin) 
+{
+    switch(*estado) {
+        case eEstaciones_Libre: {
+            if (ciego) {
+                // MODO CIEGO: Lazo abierto evaluando la integral de tiempo (ETA)
+                _sCaja* proximaCaja = (_sCaja*) RingBuffer_Peek(rbPropio);
+                if (proximaCaja != NULL && Temp_Expiro(&(proximaCaja->timerViaje))) {
+                    RingBuffer_Pop(rbPropio, NULL); 
+                    HAL_Servo_SetAngle(servoId, anguloMax);
+                    Temp_IniciarMS(tempServo, msDesplegar);
+                    *estado = eEstaciones_Desplegando;
+                }
+            } else {
+                // MODO SENSOR: Lazo cerrado por interrupción óptica
+                if (sensorIR->flanco_subida) {
+                    _sCaja cajaActual;
+                    if (RingBuffer_Pop(rbPropio, &cajaActual)) {
+                        if (cajaActual.estacionDestino == idEstacion) {
+                            Temp_IniciarMS(tempServo, msEsperar);
+                            *estado = eEstaciones_Esperando;
+                        } else if (rbSiguiente != NULL) {
+                            // Enrutamiento en cascada: Pasa a la siguiente zona física
+                            RingBuffer_Push(rbSiguiente, &cajaActual);
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        case eEstaciones_Esperando:
+            if(Temp_Expiro(tempServo)){
+                HAL_Servo_SetAngle(servoId, anguloMax);
+                Temp_IniciarMS(tempServo, msDesplegar);
+                *estado = eEstaciones_Desplegando;
+            }
+            break;
+        case eEstaciones_Desplegando:
+            if(Temp_Expiro(tempServo)){
+                HAL_Servo_SetAngle(servoId, anguloMin);
+                Temp_IniciarMS(tempServo, msRetraer);
+                *estado = eEstaciones_Retrayendo;
+            }
+            break;
+        case eEstaciones_Retrayendo:
+            if(Temp_Expiro(tempServo)){
+                *estado = eEstaciones_Libre;
+            }
+            break;
+    }
 }

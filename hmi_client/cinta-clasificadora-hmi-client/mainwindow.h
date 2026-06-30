@@ -138,11 +138,11 @@ private slots:
 
     void on_modo_ciego_btn_clicked();
 
-    void on_set_destinoA_btn_clicked();
+    void on_dest_cajaA_btn_clicked();
 
-    void on_set_destinoB_btn_clicked();
+    void on_dest_cajaB_btn_clicked();
 
-    void on_set_destinoC_btn_clicked();
+    void on_dest_cajaC_btn_clicked();
 
 private:
     void requestDistance();
