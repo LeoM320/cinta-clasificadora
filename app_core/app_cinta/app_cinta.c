@@ -312,7 +312,11 @@ void AppCinta_SetVariable(_eSetVariables idVariable, uint32_t valor){
         "msDesplegar0", "msRetraer0", "msEsperar0",
         "msDesplegar1", "msRetraer1", "msEsperar1",
         "msDesplegar2", "msRetraer2", "msEsperar2",
-        "DistanciaBase", "DisparosMax"
+        "DistanciaBase", "DisparosMax",
+        "HMinA", "HMaxA",
+        "HMinB", "HMaxB",
+        "HMinC", "HMaxC",
+        "DestinoA", "DestinoB", "DestinoC"
     };
     switch(idVariable){
         case eSetServoMin0: ServoMin0 = valor; break;
