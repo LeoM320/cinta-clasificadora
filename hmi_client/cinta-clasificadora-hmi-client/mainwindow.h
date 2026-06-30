@@ -33,7 +33,16 @@ typedef enum {
     eSetMsRetraer2,
     eSetMsEsperar2,
     eSetDistanciaBase,
-    eSetDisparosMax
+    eSetDisparosMax,
+    eSetHMinA,
+    eSetHMaxA,
+    eSetHMinB,
+    eSetHMaxB,
+    eSetHMinC,
+    eSetHMaxC,
+    eSetDestinoA,
+    eSetDestinoB,
+    eSetDestinoC
 }_eSetVariables;
 
 class MainWindow : public QMainWindow

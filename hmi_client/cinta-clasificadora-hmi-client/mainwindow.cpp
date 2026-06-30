@@ -447,12 +447,11 @@ void MainWindow::on_modo_ciego_btn_clicked()
 
 // --- ENRUTAMIENTO CAJA A ---
 void MainWindow::on_set_destinoA_btn_clicked() {
-    // Supongamos que usaste un QSpinBox para elegir el destino (0 a 3)
     uint32_t valor = ui->destinoA_spinBox->value(); 
     
     puertoSerie->AbrirCarga(6);
     puertoSerie->AgregarDato((uint8_t)0x25);          // CMD_SET_VARIABLE
-    puertoSerie->AgregarDato((uint8_t)28);            // ID: eSetDestinoA (Según tu enum en C)
+    puertoSerie->AgregarDato((uint8_t)eSetDestinoA);
     puertoSerie->AgregarDato((uint32_t)valor);        // Estación (0, 1, 2, 3)
     puertoSerie->CerrarCarga();
     puertoSerie->EnviarBufTx();
@@ -464,7 +463,7 @@ void MainWindow::on_set_destinoB_btn_clicked() {
     
     puertoSerie->AbrirCarga(6);
     puertoSerie->AgregarDato((uint8_t)0x25);          // CMD_SET_VARIABLE
-    puertoSerie->AgregarDato((uint8_t)29);            // ID: eSetDestinoB
+    puertoSerie->AgregarDato((uint8_t)eSetDestinoB);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
     puertoSerie->EnviarBufTx();
@@ -476,7 +475,7 @@ void MainWindow::on_set_destinoC_btn_clicked() {
     
     puertoSerie->AbrirCarga(6);
     puertoSerie->AgregarDato((uint8_t)0x25);          // CMD_SET_VARIABLE
-    puertoSerie->AgregarDato((uint8_t)30);            // ID: eSetDestinoC
+    puertoSerie->AgregarDato((uint8_t)eSetDestinoC);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
     puertoSerie->EnviarBufTx();
