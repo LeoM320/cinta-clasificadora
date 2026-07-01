@@ -90,8 +90,8 @@ static uint8_t ServoMin2=90;
 static uint8_t ServoMax2=0;
 
 // Variables cinemáticas (en milímetros)
-static uint16_t coordenadaEstacion1 = 520; 
-static uint16_t coordenadaEstacion2 = 930; 
+static uint16_t coordenadaEstacion1 = 490; 
+static uint16_t coordenadaEstacion2 = 920; 
 static uint16_t coordenadaEstacion3 = 1310;
 
 // ==========================================
@@ -111,17 +111,21 @@ static uint8_t destinoClaseC = 3;
 
 static uint16_t msDesplegar0=250;
 static uint16_t msRetraer0=150;
-static uint16_t msEsperar0=150;
+static uint16_t msEsperar0=1;
 
 static uint16_t msDesplegar1=250;
 static uint16_t msRetraer1=150;
-static uint16_t msEsperar1=150;
+static uint16_t msEsperar1=1;
 
 static uint16_t msDesplegar2=250;
 static uint16_t msRetraer2=150;
-static uint16_t msEsperar2=150;
+static uint16_t msEsperar2=1;
 
 static uint8_t disparosMax=10;
+
+// FSM DE TELEMETRÍA ASÍNCRONA
+static uint8_t estadoTelemetria = 0;
+static Temporizador timerTelemetria;
 
 void AppCinta_Init(void){
     HCSR04_SetMode(true);
@@ -313,11 +317,18 @@ void AppCinta_SetVariable(_eSetVariables idVariable, uint32_t valor){
         case eSetCoordenadaEstacion3: coordenadaEstacion3 = valor; break;
         
         case eSetMsDesplegar0: msDesplegar0 = valor; break;
+        case eSetMsEsperar0: msEsperar0 = valor; break;
         case eSetMsRetraer0: msRetraer0 = valor; break;
+
         case eSetMsDesplegar1: msDesplegar1 = valor; break;
+        case eSetMsEsperar1: msEsperar1 = valor; break;
         case eSetMsRetraer1: msRetraer1 = valor; break;
+
         case eSetMsDesplegar2: msDesplegar2 = valor; break;
+        case eSetMsEsperar2: msEsperar2 = valor; break;
         case eSetMsRetraer2: msRetraer2 = valor; break;
+
+        
         
         case eSetDistanciaBase: distanciaBase = valor; break;
         case eSetDisparosMax: disparosMax = valor; break;
@@ -401,39 +412,67 @@ static void ProcesarEstacionFSM(_eEstaciones* estado,
     }
 }
 
-// Función auxiliar privada para evitar saturar el buffer TX de UART
-static void PausaTransmision(void) {
-    uint32_t t = HAL_GetMillis();
-    while((HAL_GetMillis() - t) < 20); // Espera 20ms para que la UART se vacíe
-}
-
 void AppCinta_CheckConfig(void) {
-    Comandos_EnviarLog("=== ESTADO DE CONFIG ===");
-    PausaTransmision();
-    
-    sprintf(msgBuffer, "Ciego: %d | DistBase: %u mm | Disp: %u", ciego, distanciaBase, disparosMax);
-    Comandos_EnviarLog(msgBuffer);
-    PausaTransmision();
+    // Si la máquina ya está transmitiendo, ignoramos la nueva petición
+    if (estadoTelemetria == 0) { 
+        estadoTelemetria = 1; // Armamos el primer estado
+        Temp_IniciarMS(&timerTelemetria, 0); // Disparo inmediato para la primera línea
+    }
+}
+static void AppCinta_ProcesarTelemetria(void) {
+    // Si no hay transmisión pendiente, salimos instantáneamente
+    if (estadoTelemetria == 0) return;
 
-    sprintf(msgBuffer, "Tol: A(%u-%u) B(%u-%u) C(%u-%u)", hMinA, hMaxA, hMinB, hMaxB, hMinC, hMaxC);
-    Comandos_EnviarLog(msgBuffer);
-    PausaTransmision();
-    
-    sprintf(msgBuffer, "Destinos: A->E%u | B->E%u | C->E%u", destinoClaseA, destinoClaseB, destinoClaseC);
-    Comandos_EnviarLog(msgBuffer);
-    PausaTransmision();
-
-    sprintf(msgBuffer, "E1: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion1, msEsperar0, msDesplegar0, msRetraer0);
-    Comandos_EnviarLog(msgBuffer);
-    PausaTransmision();
-
-    sprintf(msgBuffer, "E2: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion2, msEsperar1, msDesplegar1, msRetraer1);
-    Comandos_EnviarLog(msgBuffer);
-    PausaTransmision();
-
-    sprintf(msgBuffer, "E3: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion3, msEsperar2, msDesplegar2, msRetraer2);
-    Comandos_EnviarLog(msgBuffer);
-    PausaTransmision();
-    
-    Comandos_EnviarLog("========================");
+    if (Temp_Expiro(&timerTelemetria)) {
+        switch (estadoTelemetria) {
+            case 1:
+                Comandos_EnviarLog("=== ESTADO DE CONFIG ===");
+                estadoTelemetria++;
+                Temp_IniciarMS(&timerTelemetria, 60); // Retardo asíncrono para la sig. trama
+                break;
+            case 2:
+                sprintf(msgBuffer, "Ciego: %d | DistBase: %u mm | Disp: %u", ciego, distanciaBase, disparosMax);
+                Comandos_EnviarLog(msgBuffer);
+                estadoTelemetria++;
+                Temp_IniciarMS(&timerTelemetria, 60);
+                break;
+            case 3:
+                sprintf(msgBuffer, "Tol: A(%u-%u) B(%u-%u) C(%u-%u)", hMinA, hMaxA, hMinB, hMaxB, hMinC, hMaxC);
+                Comandos_EnviarLog(msgBuffer);
+                estadoTelemetria++;
+                Temp_IniciarMS(&timerTelemetria, 60);
+                break;
+            case 4:
+                sprintf(msgBuffer, "Destinos: A->E%u | B->E%u | C->E%u", destinoClaseA, destinoClaseB, destinoClaseC);
+                Comandos_EnviarLog(msgBuffer);
+                estadoTelemetria++;
+                Temp_IniciarMS(&timerTelemetria, 60);
+                break;
+            case 5:
+                sprintf(msgBuffer, "E1: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion1, msEsperar0, msDesplegar0, msRetraer0);
+                Comandos_EnviarLog(msgBuffer);
+                estadoTelemetria++;
+                Temp_IniciarMS(&timerTelemetria, 60);
+                break;
+            case 6:
+                sprintf(msgBuffer, "E2: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion2, msEsperar1, msDesplegar1, msRetraer1);
+                Comandos_EnviarLog(msgBuffer);
+                estadoTelemetria++;
+                Temp_IniciarMS(&timerTelemetria, 60);
+                break;
+            case 7:
+                sprintf(msgBuffer, "E3: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion3, msEsperar2, msDesplegar2, msRetraer2);
+                Comandos_EnviarLog(msgBuffer);
+                estadoTelemetria++;
+                Temp_IniciarMS(&timerTelemetria, 60);
+                break;
+            case 8:
+                Comandos_EnviarLog("========================");
+                estadoTelemetria = 0; // Apagamos la FSM de telemetría
+                break;
+            default:
+                estadoTelemetria = 0; // Fallback de seguridad
+                break;
+        }
+    }
 }
