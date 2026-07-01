@@ -133,9 +133,9 @@ void AppCinta_Init(void){
 
     // Inicializamos todos los debouncers
     Debounce_Init(&debounceIR0, 50, true);
-    Debounce_Init(&debounceIR1, 50, true);
-    Debounce_Init(&debounceIR2, 50, true);
-    Debounce_Init(&debounceIR3, 50, true);
+    Debounce_Init(&debounceIR1, 10, true);
+    Debounce_Init(&debounceIR2, 10, true);
+    Debounce_Init(&debounceIR3, 10, true);
 }
 
 void AppCinta_Task(void){
@@ -401,29 +401,39 @@ static void ProcesarEstacionFSM(_eEstaciones* estado,
     }
 }
 
-void AppCinta_CheckConfig(void) {
-    Comandos_EnviarLog("=== ESTADO DE CONFIGURACION ===");
-    
-    // Variables Globales
-    sprintf(msgBuffer, "Ciego: %d | DistBase: %u mm | Disparos: %u", ciego, distanciaBase, disparosMax);
-    Comandos_EnviarLog(msgBuffer);
+// Función auxiliar privada para evitar saturar el buffer TX de UART
+static void PausaTransmision(void) {
+    uint32_t t = HAL_GetMillis();
+    while((HAL_GetMillis() - t) < 20); // Espera 20ms para que la UART se vacíe
+}
 
-    // Parametría de Clases
+void AppCinta_CheckConfig(void) {
+    Comandos_EnviarLog("=== ESTADO DE CONFIG ===");
+    PausaTransmision();
+    
+    sprintf(msgBuffer, "Ciego: %d | DistBase: %u mm | Disp: %u", ciego, distanciaBase, disparosMax);
+    Comandos_EnviarLog(msgBuffer);
+    PausaTransmision();
+
     sprintf(msgBuffer, "Tol: A(%u-%u) B(%u-%u) C(%u-%u)", hMinA, hMaxA, hMinB, hMaxB, hMinC, hMaxC);
     Comandos_EnviarLog(msgBuffer);
+    PausaTransmision();
     
     sprintf(msgBuffer, "Destinos: A->E%u | B->E%u | C->E%u", destinoClaseA, destinoClaseB, destinoClaseC);
     Comandos_EnviarLog(msgBuffer);
+    PausaTransmision();
 
-    // Cinemática de Estaciones
     sprintf(msgBuffer, "E1: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion1, msEsperar0, msDesplegar0, msRetraer0);
     Comandos_EnviarLog(msgBuffer);
+    PausaTransmision();
 
     sprintf(msgBuffer, "E2: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion2, msEsperar1, msDesplegar1, msRetraer1);
     Comandos_EnviarLog(msgBuffer);
+    PausaTransmision();
 
     sprintf(msgBuffer, "E3: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion3, msEsperar2, msDesplegar2, msRetraer2);
     Comandos_EnviarLog(msgBuffer);
+    PausaTransmision();
     
-    Comandos_EnviarLog("===============================");
+    Comandos_EnviarLog("========================");
 }

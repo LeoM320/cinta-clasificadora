@@ -512,7 +512,7 @@ void MainWindow::on_dest_cajaC_btn_clicked() {
     puertoSerie->EnviarBufTx();
 }
 
-void MainWindow::on_check_config_btn_clicked() {
+void MainWindow::on_chk_conf_btn_clicked() {
     if (!puertoSerie->Comprobar()) return;
     
     puertoSerie->AbrirCarga(1);
@@ -521,8 +521,12 @@ void MainWindow::on_check_config_btn_clicked() {
     puertoSerie->EnviarBufTx();
 }
 
-void MainWindow::on_set_config_btn_clicked() {
+void MainWindow::on_set_conf_btn_clicked() {
     if (!puertoSerie->Comprobar()) return;
+
+    // 1. Feedback inmediato al operador: Bloqueamos el botón y cambiamos el texto
+    ui->set_conf_btn->setEnabled(false);
+    ui->set_conf_btn->setText("Sincronizando...");
 
     int delayAcumulado = 0;
     const int stepMs = 30; // 30 ms de respiro entre tramas (100% seguro para AVR)
@@ -584,6 +588,17 @@ void MainWindow::on_set_config_btn_clicked() {
     agendarParametro(eSetServoMax2, ui->set_sv2max_spinBox->value());
     agendarParametro(eSetServoMin2, ui->set_sv2min_spinBox->value());
 
-    // Opcional: Logueamos en la consola para confirmar que se disparó la ráfaga
-    qDebug() << "Batch programado. Tiempo estimado de transferencia:" << delayAcumulado << "ms";
+    // 2. Cierre de Transacción: Agendamos una última acción para cuando termine todo el lote
+    QTimer::singleShot(delayAcumulado + 100, this, [this]() {
+        // Restauramos el botón
+        ui->set_conf_btn->setEnabled(true);
+        ui->set_conf_btn->setText("Set Config");
+
+        // Damos un aviso visual final (podés usar un QMessageBox o un texto verde en un QLabel)
+        // Ejemplo simple cambiando el estilo temporalmente o logueando en consola:
+        qDebug() << "HMI: Configuración masiva cargada exitosamente en el microcontrolador.";
+
+        // Si tenés una consola en tu UI, podrías agregar:
+        //ui->consola_textEdit->appendPlainText("Sincronización masiva finalizada.");
+    });
 }

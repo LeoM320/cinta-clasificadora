@@ -140,9 +140,9 @@ private slots:
 
     void on_dest_cajaC_btn_clicked();
 
-    void on_check_config_btn_clicked();
+    void on_chk_conf_btn_clicked();
 
-    void on_set_config_btn_clicked();
+    void on_set_conf_btn_clicked();
 
 private:
     void requestDistance();
