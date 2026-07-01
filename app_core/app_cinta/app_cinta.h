@@ -35,4 +35,6 @@ void AppCinta_Iniciar(void);
 void AppCinta_Detener(void);
 
 void AppCinta_SetVariable(_eSetVariables idVariable, uint32_t valor);
+
+void AppCinta_CheckConfig(void);
 #endif /* APP_CINTA_H_ */

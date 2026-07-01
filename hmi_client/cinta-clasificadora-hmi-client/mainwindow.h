@@ -68,9 +68,9 @@ private slots:
     void onTimerPolling();
     void onRx(uint8_t cmdId);
 
-    void on_pushButton_clicked();
+    void on_ON_btn_clicked();
 
-    void on_pushButton_2_clicked();
+    void on_OFF_btn_clicked();
 
     void on_sv1_0_btn_clicked();
 
@@ -89,8 +89,6 @@ private slots:
     void on_sv3_90_btn_clicked();
 
     void on_sv3_180_btn_clicked();
-
-    void on_cinta_modo_clicked();
 
     void on_coord_est1_btn_clicked();
 
@@ -128,8 +126,6 @@ private slots:
 
     void on_ret_sv2_btn_clicked();
 
-    void on_delta_caja_btn_clicked();
-
     void on_dist_hcsr_btn_clicked();
 
     void on_disparosMax_btn_clicked();
@@ -143,6 +139,10 @@ private slots:
     void on_dest_cajaB_btn_clicked();
 
     void on_dest_cajaC_btn_clicked();
+
+    void on_check_config_btn_clicked();
+
+    void on_set_config_btn_clicked();
 
 private:
     void requestDistance();

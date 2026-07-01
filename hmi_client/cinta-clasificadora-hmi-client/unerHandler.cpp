@@ -212,13 +212,13 @@ float UnerHandler::ObtenerFloat(uint8_t pos) {
 }
 
 void UnerHandler::EnviarBufTx() {
-    for (int i = 0; i < BUFSIZE; i++) {
+    /*for (int i = 0; i < BUFSIZE; i++) {
         sendByte(varTx.buf[i]);
-    }
+    }*/
 }
 
 void UnerHandler::EnviarBufRx() {
-    for (int i = 0; i < BUFSIZE; i++) {
+    /*for (int i = 0; i < BUFSIZE; i++) {
         sendByte(varRx.buf[i]);
-    }
+    }*/
 }

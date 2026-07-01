@@ -65,7 +65,7 @@ static Debouncer_t debounceIR1;
 static Debouncer_t debounceIR2;
 static Debouncer_t debounceIR3;
 
-static uint16_t distanciaBase = 180; 
+static uint16_t distanciaBase = 200; 
 static uint8_t nDisparosHcsr04;
 static uint16_t disparosMm[20]; 
 static uint8_t idMuestraAnterior = 0;
@@ -90,8 +90,8 @@ static uint8_t ServoMin2=90;
 static uint8_t ServoMax2=0;
 
 // Variables cinemáticas (en milímetros)
-static uint16_t coordenadaEstacion1 = 400; 
-static uint16_t coordenadaEstacion2 = 830; 
+static uint16_t coordenadaEstacion1 = 520; 
+static uint16_t coordenadaEstacion2 = 930; 
 static uint16_t coordenadaEstacion3 = 1310;
 
 // ==========================================
@@ -109,17 +109,17 @@ static uint8_t destinoClaseA = 1;
 static uint8_t destinoClaseB = 2;
 static uint8_t destinoClaseC = 3;
 
-static uint16_t msDesplegar0=500;
-static uint16_t msRetraer0=500;
-static uint16_t msEsperar0=500;
+static uint16_t msDesplegar0=250;
+static uint16_t msRetraer0=150;
+static uint16_t msEsperar0=150;
 
-static uint16_t msDesplegar1=500;
-static uint16_t msRetraer1=500;
-static uint16_t msEsperar1=500;
+static uint16_t msDesplegar1=250;
+static uint16_t msRetraer1=150;
+static uint16_t msEsperar1=150;
 
-static uint16_t msDesplegar2=500;
-static uint16_t msRetraer2=500;
-static uint16_t msEsperar2=500;
+static uint16_t msDesplegar2=250;
+static uint16_t msRetraer2=150;
+static uint16_t msEsperar2=150;
 
 static uint8_t disparosMax=10;
 
@@ -399,4 +399,31 @@ static void ProcesarEstacionFSM(_eEstaciones* estado,
             }
             break;
     }
+}
+
+void AppCinta_CheckConfig(void) {
+    Comandos_EnviarLog("=== ESTADO DE CONFIGURACION ===");
+    
+    // Variables Globales
+    sprintf(msgBuffer, "Ciego: %d | DistBase: %u mm | Disparos: %u", ciego, distanciaBase, disparosMax);
+    Comandos_EnviarLog(msgBuffer);
+
+    // Parametría de Clases
+    sprintf(msgBuffer, "Tol: A(%u-%u) B(%u-%u) C(%u-%u)", hMinA, hMaxA, hMinB, hMaxB, hMinC, hMaxC);
+    Comandos_EnviarLog(msgBuffer);
+    
+    sprintf(msgBuffer, "Destinos: A->E%u | B->E%u | C->E%u", destinoClaseA, destinoClaseB, destinoClaseC);
+    Comandos_EnviarLog(msgBuffer);
+
+    // Cinemática de Estaciones
+    sprintf(msgBuffer, "E1: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion1, msEsperar0, msDesplegar0, msRetraer0);
+    Comandos_EnviarLog(msgBuffer);
+
+    sprintf(msgBuffer, "E2: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion2, msEsperar1, msDesplegar1, msRetraer1);
+    Comandos_EnviarLog(msgBuffer);
+
+    sprintf(msgBuffer, "E3: Coord=%u | Esp=%u | Desp=%u | Ret=%u", coordenadaEstacion3, msEsperar2, msDesplegar2, msRetraer2);
+    Comandos_EnviarLog(msgBuffer);
+    
+    Comandos_EnviarLog("===============================");
 }

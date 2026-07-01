@@ -11,6 +11,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     puertoSerie = new UnerSerialQT(this);
 
+    // Inicializar la interfaz asumiendo que el micro arranca en Modo Sensor
+    ui->modo_sensor_btn->setStyleSheet("background-color: #28a745; color: white; font-weight: bold; border-radius: 4px; padding: 5px;");
+
     // ==========================================
     // 1. INYECCIÓN DEL PROTOCOLO DE CONEXIÓN
     // ==========================================
@@ -197,7 +200,8 @@ void MainWindow::onRx(uint8_t cmdId) {
     }
 }
 
-void MainWindow::on_pushButton_clicked()
+//void MainWindow::on_pushButton_clicked()
+void MainWindow::on_ON_btn_clicked()
 {//Encender cinta
     puertoSerie->AbrirCarga(2);
     puertoSerie->AgregarDato((uint8_t)0x06); // CMD_SET_BELT
@@ -205,7 +209,8 @@ void MainWindow::on_pushButton_clicked()
     puertoSerie->CerrarCarga();
 }
 
-void MainWindow::on_pushButton_2_clicked()
+//void MainWindow::on_pushButton_2_clicked()
+void MainWindow::on_OFF_btn_clicked()
 {//Apagar cinta
     puertoSerie->AbrirCarga(2);
     puertoSerie->AgregarDato((uint8_t)0x06); // CMD_SET_BELT
@@ -228,7 +233,7 @@ void MainWindow::on_sv3_0_btn_clicked()   { setServo(2, 0); }
 void MainWindow::on_sv3_90_btn_clicked()  { setServo(2, 90); }
 void MainWindow::on_sv3_180_btn_clicked() { setServo(2, 180); }
 
-// --- ESTACIÓN 0 ---
+// --- ESTACIÓN 1 ---
 void MainWindow::on_coord_est1_btn_clicked() {
     uint32_t valor = ui->coord_est1_spinBox->value();
     puertoSerie->AbrirCarga(6);
@@ -236,6 +241,7 @@ void MainWindow::on_coord_est1_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetCoordenadaEstacion1);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_set_sv0max_btn_clicked() {
@@ -245,6 +251,7 @@ void MainWindow::on_set_sv0max_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetServoMax0);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_set_sv0min_btn_clicked() {
@@ -254,6 +261,7 @@ void MainWindow::on_set_sv0min_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetServoMin0);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_desp_sv0_btn_clicked() {
@@ -263,6 +271,7 @@ void MainWindow::on_desp_sv0_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsDesplegar0);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_esp_sv0_btn_clicked() {
@@ -272,6 +281,7 @@ void MainWindow::on_esp_sv0_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsEsperar0);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_ret_sv0_btn_clicked() {
@@ -281,9 +291,10 @@ void MainWindow::on_ret_sv0_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsRetraer0);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
-// --- ESTACIÓN 1 ---
+// --- ESTACIÓN 2 ---
 void MainWindow::on_coord_est2_btn_clicked() {
     uint32_t valor = ui->coord_est2_spinBox->value();
     puertoSerie->AbrirCarga(6);
@@ -291,6 +302,7 @@ void MainWindow::on_coord_est2_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetCoordenadaEstacion2);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_set_sv1max_btn_clicked() {
@@ -300,6 +312,7 @@ void MainWindow::on_set_sv1max_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetServoMax1);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_set_sv1min_btn_clicked() {
@@ -309,6 +322,7 @@ void MainWindow::on_set_sv1min_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetServoMin1);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_desp_sv1_btn_clicked() {
@@ -318,6 +332,7 @@ void MainWindow::on_desp_sv1_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsDesplegar1);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_esp_sv1_btn_clicked() {
@@ -327,6 +342,7 @@ void MainWindow::on_esp_sv1_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsEsperar1);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_ret_sv1_btn_clicked() {
@@ -336,9 +352,10 @@ void MainWindow::on_ret_sv1_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsRetraer1);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
-// --- ESTACIÓN 2 ---
+// --- ESTACIÓN 3 ---S
 void MainWindow::on_coord_est3_btn_clicked() {
     uint32_t valor = ui->coord_est3_spinBox->value();
     puertoSerie->AbrirCarga(6);
@@ -346,6 +363,7 @@ void MainWindow::on_coord_est3_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetCoordenadaEstacion3);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_set_sv2max_btn_clicked() {
@@ -355,6 +373,7 @@ void MainWindow::on_set_sv2max_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetServoMax2);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_set_sv2min_btn_clicked() {
@@ -364,6 +383,7 @@ void MainWindow::on_set_sv2min_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetServoMin2);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_desp_sv2_btn_clicked() {
@@ -373,6 +393,7 @@ void MainWindow::on_desp_sv2_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsDesplegar2);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_esp_sv2_btn_clicked() {
@@ -382,6 +403,7 @@ void MainWindow::on_esp_sv2_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsEsperar2);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_ret_sv2_btn_clicked() {
@@ -391,16 +413,7 @@ void MainWindow::on_ret_sv2_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetMsRetraer2);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
-}
-
-// --- GLOBALES ---
-void MainWindow::on_delta_caja_btn_clicked() {
-    uint32_t valor = ui->delta_caja_spinBox->value();
-    puertoSerie->AbrirCarga(6);
-    puertoSerie->AgregarDato((uint8_t)0x25);
-    puertoSerie->AgregarDato((uint8_t)eSetDelta);
-    puertoSerie->AgregarDato((uint32_t)valor);
-    puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_dist_hcsr_btn_clicked() {
@@ -410,6 +423,7 @@ void MainWindow::on_dist_hcsr_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetDistanciaBase);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_disparosMax_btn_clicked() {
@@ -419,30 +433,47 @@ void MainWindow::on_disparosMax_btn_clicked() {
     puertoSerie->AgregarDato((uint8_t)eSetDisparosMax);
     puertoSerie->AgregarDato((uint32_t)valor);
     puertoSerie->CerrarCarga();
-}
-
-void MainWindow::on_cinta_modo_clicked()
-{//Cambiar modo de la cinta y enviar el set, actualizar estilo del boton
-
+    puertoSerie->EnviarBufTx();
 }
 
 void MainWindow::on_modo_sensor_btn_clicked()
 {
-    puertoSerie->AbrirCarga(6);
-    puertoSerie->AgregarDato((uint8_t)0x25);
-    puertoSerie->AgregarDato((uint8_t)eSetCiego);
-    puertoSerie->AgregarDato((uint32_t)0);
-    puertoSerie->CerrarCarga();
-}
+    if (!puertoSerie->Comprobar()) return;
 
+    // 1. Envío del comando al microcontrolador
+    puertoSerie->AbrirCarga(6);
+    puertoSerie->AgregarDato((uint8_t)0x25); // CMD_SET_VARIABLE
+    puertoSerie->AgregarDato((uint8_t)eSetCiego);
+    puertoSerie->AgregarDato((uint32_t)0);  // 0 = Modo Sensor (Lazo Cerrado)
+    puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
+
+    // 2. Feedback Visual (HMI)
+    // Pintamos el botón Sensor de verde y reseteamos el Ciego a su estado gris
+    ui->modo_sensor_btn->setStyleSheet("background-color: #28a745; color: white; font-weight: bold; border-radius: 4px; padding: 5px;");
+    ui->modo_ciego_btn->setStyleSheet("");  // Un string vacío restaura el tema del SO
+
+    qDebug() << "HMI: Modo cambiado a SENSOR";
+}
 
 void MainWindow::on_modo_ciego_btn_clicked()
 {
+    if (!puertoSerie->Comprobar()) return;
+
+    // 1. Envío del comando al microcontrolador
     puertoSerie->AbrirCarga(6);
-    puertoSerie->AgregarDato((uint8_t)0x25);
+    puertoSerie->AgregarDato((uint8_t)0x25); // CMD_SET_VARIABLE
     puertoSerie->AgregarDato((uint8_t)eSetCiego);
-    puertoSerie->AgregarDato((uint32_t)1);
+    puertoSerie->AgregarDato((uint32_t)1);  // 1 = Modo Ciego
     puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
+
+    // 2. Feedback Visual (HMI)
+    // Pintamos el botón Ciego de verde y reseteamos el Sensor
+    ui->modo_ciego_btn->setStyleSheet("background-color: #28a745; color: white; font-weight: bold; border-radius: 4px; padding: 5px;");
+    ui->modo_sensor_btn->setStyleSheet("");
+
+    qDebug() << "HMI: Modo cambiado a CIEGO";
 }
 
 // --- ENRUTAMIENTO CAJA A ---
@@ -481,4 +512,78 @@ void MainWindow::on_dest_cajaC_btn_clicked() {
     puertoSerie->EnviarBufTx();
 }
 
+void MainWindow::on_check_config_btn_clicked() {
+    if (!puertoSerie->Comprobar()) return;
+    
+    puertoSerie->AbrirCarga(1);
+    puertoSerie->AgregarDato((uint8_t)0x26);         // CMD_GET_VARIABLE
+    puertoSerie->CerrarCarga();
+    puertoSerie->EnviarBufTx();
+}
 
+void MainWindow::on_set_config_btn_clicked() {
+    if (!puertoSerie->Comprobar()) return;
+
+    int delayAcumulado = 0;
+    const int stepMs = 30; // 30 ms de respiro entre tramas (100% seguro para AVR)
+
+    // Lambda asíncrona: No envía el dato ahora, sino que lo AGENDARÁ en el Event Loop
+    auto agendarParametro = [this, &delayAcumulado, stepMs](uint8_t idParam, uint32_t valor) {
+
+        // QTimer::singleShot ejecuta el código en el futuro sin bloquear
+        QTimer::singleShot(delayAcumulado, this, [this, idParam, valor]() {
+            if (!puertoSerie->Comprobar()) return; // Aborta si se desconectó el cable
+
+            puertoSerie->AbrirCarga(6);
+            puertoSerie->AgregarDato((uint8_t)0x25); // CMD_SET_VARIABLE
+            puertoSerie->AgregarDato(idParam);
+            puertoSerie->AgregarDato(valor);
+            puertoSerie->CerrarCarga();
+            puertoSerie->EnviarBufTx();
+        });
+
+        // Incrementamos el offset temporal para el próximo parámetro
+        delayAcumulado += stepMs;
+    };
+
+    // ==========================================
+    // AGENDAMIENTO MASIVO (Batch Provisioning)
+    // ==========================================
+
+    // --- GLOBALES ---
+    agendarParametro(eSetDistanciaBase, ui->dist_hcsr_spinBox->value());
+    agendarParametro(eSetDisparosMax, ui->disparosMax_spinBox->value());
+
+    // --- CLASIFICACIÓN Y ENRUTAMIENTO ---
+    // (Asumiendo que tenés estos spinboxes o cambialos por los tuyos)
+    agendarParametro(eSetDestinoA, ui->dest_cajaA_spinBox->value());
+    agendarParametro(eSetDestinoB, ui->dest_cajaB_spinBox->value());
+    agendarParametro(eSetDestinoC, ui->dest_cajaC_spinBox->value());
+
+    // --- ESTACIÓN 1 ---
+    agendarParametro(eSetCoordenadaEstacion1, ui->coord_est1_spinBox->value());
+    agendarParametro(eSetMsEsperar0, ui->esp_sv0_spinBox->value());
+    agendarParametro(eSetMsDesplegar0, ui->desp_sv0_spinBox->value());
+    agendarParametro(eSetMsRetraer0, ui->ret_sv0_spinBox->value());
+    agendarParametro(eSetServoMax0, ui->set_sv0max_spinBox->value());
+    agendarParametro(eSetServoMin0, ui->set_sv0min_spinBox->value());
+
+    // --- ESTACIÓN 2 ---
+    agendarParametro(eSetCoordenadaEstacion2, ui->coord_est2_spinBox->value());
+    agendarParametro(eSetMsEsperar1, ui->esp_sv1_spinBox->value());
+    agendarParametro(eSetMsDesplegar1, ui->desp_sv1_spinBox->value());
+    agendarParametro(eSetMsRetraer1, ui->ret_sv1_spinBox->value());
+    agendarParametro(eSetServoMax1, ui->set_sv1max_spinBox->value());
+    agendarParametro(eSetServoMin1, ui->set_sv1min_spinBox->value());
+
+    // --- ESTACIÓN 3 ---
+    agendarParametro(eSetCoordenadaEstacion3, ui->coord_est3_spinBox->value());
+    agendarParametro(eSetMsEsperar2, ui->esp_sv2_spinBox->value());
+    agendarParametro(eSetMsDesplegar2, ui->desp_sv2_spinBox->value());
+    agendarParametro(eSetMsRetraer2, ui->ret_sv2_spinBox->value());
+    agendarParametro(eSetServoMax2, ui->set_sv2max_spinBox->value());
+    agendarParametro(eSetServoMin2, ui->set_sv2min_spinBox->value());
+
+    // Opcional: Logueamos en la consola para confirmar que se disparó la ráfaga
+    qDebug() << "Batch programado. Tiempo estimado de transferencia:" << delayAcumulado << "ms";
+}

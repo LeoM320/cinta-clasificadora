@@ -129,6 +129,10 @@ void Comandos_Procesar(UnerProtocol_t *u) {
                 break;
             }
 
+            case CMD_GET_VARIABLE:
+                AppCinta_CheckConfig();
+            break;
+
             default:
             {
                 Uner_AbrirCarga(u, 2);
@@ -137,6 +141,7 @@ void Comandos_Procesar(UnerProtocol_t *u) {
                 Uner_CerrarCarga(u);
                 break;
             }
+
         }
         
         //Uner_Transmitir(u);
