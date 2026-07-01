@@ -208,6 +208,14 @@
       <SubType>compile</SubType>
       <Link>utils\heartbeat.h</Link>
     </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\ringbuffer.c">
+      <SubType>compile</SubType>
+      <Link>utils\ringbuffer.c</Link>
+    </Compile>
+    <Compile Include="..\..\..\..\app_core\utils\ringbuffer.h">
+      <SubType>compile</SubType>
+      <Link>utils\ringbuffer.h</Link>
+    </Compile>
     <Compile Include="..\..\..\..\app_core\utils\temporizador.c">
       <SubType>compile</SubType>
       <Link>utils\temporizador.c</Link>

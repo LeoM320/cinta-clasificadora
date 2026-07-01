@@ -38,6 +38,8 @@ static void ProcesarEstacionFSM(_eEstaciones* estado,
                                 uint8_t anguloMax,
                                 uint8_t anguloMin);
 
+static void AppCinta_ProcesarTelemetria(void);
+
 // 1. Estructura de dominio
 typedef struct {
     Temporizador timerViaje; 
@@ -272,7 +274,7 @@ void AppCinta_Task(void){
                         
     ProcesarEstacionFSM(&eEstacion3, &rbEstacion3, NULL,         3, 2, &servo3, &debounceIR3, 
                         msEsperar2, msDesplegar2, msRetraer2, ServoMax2, ServoMin2);
-    
+    AppCinta_ProcesarTelemetria();
 }
 
 void AppCinta_Iniciar(void){
